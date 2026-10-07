@@ -13,6 +13,8 @@
 
 ## Mac 版本
 
+已发布 [v0.3.1 Mac 本地离线预览版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.3.1)，两种架构的原生构建和应用包离线自检均通过，详见[验证记录](docs/macos-verification.md)。
+
 从 [GitHub Releases](https://github.com/ZzzGenjicat/dota2-chat-translator/releases) 下载 Mac 安装包：Apple 芯片选 `macos-arm64.dmg`，Intel Mac 选 `macos-x86_64.dmg`。需要 **macOS 14 或更新版本**。打开 DMG，把 `Dota2ChatTranslator` 拖到 Applications（应用程序），随后打开即可。模型和运行环境已经包含，无需 Python、Homebrew 或首次启动下载。
 
 第一次使用仍需按界面提示安装一次游戏直读配置并重启 Dota 2。复制俄语后，在游戏中用 **Command+V** 粘贴。不需要屏幕录制或辅助功能权限。中文字体、Steam 自定义游戏库和用户数据目录按 Mac 处理，默认 CPU INT8、2 线程、空闲 3 分钟卸载模型。

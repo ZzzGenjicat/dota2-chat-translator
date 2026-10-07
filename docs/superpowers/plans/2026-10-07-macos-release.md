@@ -27,19 +27,22 @@
 
 ### Task 1: Native platform behavior
 
-- [ ] Write regression tests for repeated macOS priority setup, font fallback and platform-specific installation guidance; run them RED.
-- [ ] Implement absolute priority, Chinese font selection and visible startup errors; run focused tests GREEN and the full suite.
+- [x] Write regression tests for repeated macOS priority setup, font fallback and platform-specific installation guidance; run them RED.
+- [x] Implement absolute priority, Chinese font selection and visible startup errors; run focused tests GREEN and the full suite.
 
 ### Task 2: Distribution and native verification
 
-- [ ] Write smoke-runner tests for offline guard and JSON reporting; run RED.
-- [ ] Add source install/launch scripts, a PyInstaller spec, native DMG builder, model notice and an offline self-test entry point.
-- [ ] Add native Apple Silicon/Intel CI that tests the frozen bundle after relocation and publishes installers/checksums/reports for version tags.
-- [ ] Run local tests and syntax checks, then request a fresh code review and fix material findings.
+- [x] Write smoke-runner tests for the offline guard; run RED and validate JSON reports with the real model.
+- [x] Add source install/launch scripts, a PyInstaller spec, native DMG builder, model notice and an offline self-test entry point.
+- [x] Add native Apple Silicon/Intel CI that tests the frozen bundle after relocation and publishes installers/checksums/reports for version tags or an explicitly published manual run.
+- [x] Run local tests and syntax checks, then request a fresh code review and fix material findings.
 
 ### Task 3: GitHub release
 
-- [ ] Audit the exact publication manifest for personal state, credentials, unrelated tools and oversized Git files.
-- [ ] Create the requested public repository, commit and upload only the audited manifest.
-- [ ] Trigger native builds, inspect failures and repair them until both installers and frozen smoke reports pass.
-- [ ] Verify the GitHub Release assets and provide repository/download links with any remaining practical limitations.
+- [x] Audit the exact publication manifest for personal state, credentials, unrelated tools and oversized Git files.
+- [x] Create the requested public repository, commit and upload only the audited manifest.
+- [x] Trigger native builds, inspect failures and repair them until both installers and frozen smoke reports pass.
+- [x] Verify the GitHub Release assets and provide repository/download links with any remaining practical limitations.
+
+Release: [v0.3.1](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.3.1).
+Verification: `docs/macos-verification.md`.
