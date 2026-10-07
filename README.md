@@ -1,125 +1,46 @@
 # Dota 2 本地聊天翻译
 
-接收 Dota 2 游戏聊天，把俄语玩家消息译成中文；你输入的中文会译成俄语，复制后自行发送。翻译后端为 **M2M100 418M · CTranslate2 INT8 · CPU**，模型与分词都在本机运行。启动和翻译不会调用 Google、MyMemory、ChatGPT 或其他翻译服务，也不会自动下载文件。旧联网设置会迁移为离线。
+把 Dota 2 里的俄语聊天译成中文，也能把你输入的中文译成俄语，复制后发到游戏中。翻译在本机完成，支持 Windows 和 Mac；词库优先保留原话语气、粗话强度和常见游戏口语，复杂黑话仍可能误译。
 
-## 开始使用
+## 下载和安装
 
-普通用户从 [v0.3.2 安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.3.2) 选择适合自己电脑的文件：
+[安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.3.2)
 
-| 电脑 | 下载文件 | 安装方法 |
+| 电脑 | 下载 | 安装方法 |
 | --- | --- | --- |
-| Windows 10 / 11，64 位 | [Windows 安装 EXE](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-windows-x64-setup.exe) | 双击，点“安装”，完成后从桌面或开始菜单打开 |
-| Mac，Apple 芯片（M1 / M2 / M3 / M4 等） | [Apple 芯片 DMG](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-macos-arm64.dmg) | 打开 DMG，把应用拖到“应用程序”后打开 |
-| Mac，Intel 处理器 | [Intel Mac DMG](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-macos-x86_64.dmg) | 打开 DMG，把应用拖到“应用程序”后打开 |
+| Windows 10/11，64 位 | [Windows 安装版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-windows-x64-setup.exe) | 双击后点“安装” |
+| Apple 芯片 Mac | [Apple 芯片版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-macos-arm64.dmg) | 打开 DMG，把程序拖到“应用程序” |
+| Intel Mac | [Intel 版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-macos-x86_64.dmg) | 打开 DMG，把程序拖到“应用程序” |
 
-三个安装包均已包含离线模型和运行环境，**不用安装 Python，不用额外下载模型**。下载到电脑后，安装和日常翻译都可离线进行。Mac 需要 **macOS 14 或更新版本**；点击左上角苹果图标 →“关于本机”，查看“芯片”或“处理器”以选择版本。Windows ARM 电脑暂不支持。
+安装包已包含本地模型和运行环境，不用安装 Python 或另下模型。Mac 需要 macOS 14 或更新版本；在苹果菜单“关于本机”查看芯片类型。Windows ARM 暂不支持。
 
-**不要点 Code → Download ZIP，也不要下载 Source code (zip / tar.gz)**：它们是开发者源码，不是安装包。`.sha256` 和 `.json` 是校验文件与测试报告，普通用户无需下载。
+**普通用户下载 EXE 或 DMG，不要点 Download ZIP 或 Source code。** 校验文件无需下载。
 
-1. 按上表安装并打开程序。Windows 安装器自动创建快捷方式，重复运行可重新安装；卸载可在系统“已安装的应用”中进行。Mac 卸载时将应用移到废纸篓。两者的个人设置、缓存和游戏直读配置会保留。
-2. 每次打开会在后台检查游戏直读配置：已安装则隐藏安装按钮；缺失或异常时显示“安装游戏直读配置”或“修复游戏直读配置”，并给出说明。通常只需安装一次，安装或修复后重启 Dota 2，再点击“开始抓取”。检查不会改写游戏文件；找不到游戏时可点击标题旁的“选择目录”，选择 Dota 2 安装目录（`dota 2 beta`、`game` 或 `game/dota`），会验证并记住这个选择。游戏把聊天事件发送到本机 `127.0.0.1:47854`。原文和译文按时间显示；聊天轮盘和不含俄文的消息会过滤。
-3. 程序启动会后台预热模型；可看左侧状态或手动点击“预热本地模型”。下方输入中文，停顿 450 毫秒后自动翻译，点击“复制俄语”再粘贴到游戏。
-4. “更多设置”中可选择模型文件夹和 1–4 个 CPU 线程，默认 2。点击“应用本地设置 / 重载词库”后生效。也可调整置顶、透明度、字号并清空文字或翻译缓存。
+## 使用
 
-游戏直读使用原有 GSI 配置，不读取游戏进程内存；聊天正文不会发往远程翻译服务。游戏直读是否收到消息仍取决于 Dota 2 实际推送的事件。
+1. 打开程序，首次按提示安装一次游戏直读配置，然后重启 Dota 2。找不到游戏时点击“选择目录”。
+2. 点击“开始抓取”，俄语聊天会显示中文译文。每次打开都会自动检查配置，已安装后无需重复点击安装。
+3. 下方输入中文，自动译成俄语；点击“复制俄语”，在游戏中粘贴发送。Windows 用 Ctrl+V，Mac 用 Command+V。
 
-安装包内附首次使用说明。本预览版尚无 Windows 发布者证书，Mac 尚未经过 Apple Developer ID 签名或公证。若首次打开被系统拦截：Windows 在该安装文件的“更多信息”中查看“仍要运行”；Mac 尝试打开一次后，在“系统设置 → 隐私与安全性”查看这个应用的“仍要打开”。不要关闭系统整体保护。安装包构建和验证细节见[验证记录](docs/installer-verification.md)。
+模型会自动预热，无需每次手动点击。默认使用 2 个 CPU 线程，空闲 3 分钟释放模型；“更多设置”可调整显示、线程数和清空缓存。
 
-## Mac 使用说明
+本版本暂未取得系统认可的发布签名。首次被拦截时，Windows 查看该文件“更多信息 → 仍要运行”；Mac 尝试打开一次后，查看“系统设置 → 隐私与安全性 → 仍要打开”。不需要关闭系统整体保护。
 
-复制俄语后，在游戏中用 **Command+V** 粘贴。不需要屏幕录制或辅助功能权限。中文字体、Steam 自定义游戏库和用户数据目录按 Mac 处理，默认 CPU INT8、2 线程、空闲 3 分钟卸载模型。
+## 本地模型安装
 
-需要从源码运行时，安装 python.org 的 Python 3.12（含 Tk），双击 `install_offline.command` 一次，之后双击 `launch_app.command`。源码安装阶段会下载依赖和校验模型；日常运行不会联网翻译。也可通过 `DOTA2_TRANSLATOR_PYTHON` 指定 Python 3.12 路径。
+使用 **M2M100 418M · CTranslate2 INT8** 本地模型。安装包已经内置；以下方法用于从源码运行或自行准备模型。
 
-## 低资源策略与实测
+先安装官方 Python 3.12（含 Tk；Windows 选择 64 位），再安装一次：
 
-收发共用一份模型，一次只运行一个推理任务。默认 CPU INT8、1 个推理 worker、2 个 CPU 线程、greedy 解码；不占用 GPU。Windows 进程使用较低优先级，OpenMP 空闲线程不主动自旋，关闭额外的 packed GEMM 权重副本。空闲 3 分钟释放模型，下一条需要模型的消息再自动加载。已知短语和缓存可以直接返回。
+- Windows：运行 `install_offline.ps1`，完成后双击 `launch_app.vbs`。可用 `-PythonPath` 指定 Python 路径。
+- Mac：双击 `install_offline.command`，完成后双击 `launch_app.command`。
 
-2026-10-06，在本机 i7-13700KF、2 线程、禁止网络连接的真实模型测试中：
+只下载并安装模型，也可运行：
 
-| 项目 | 实测 |
-| --- | --- |
-| 初次加载并预热 | 约 0.9 秒 |
-| 普通短句推理 | 约 0.25–0.37 秒 |
-| 词库短句，首次写缓存 | 约 6–7 毫秒 |
-| 内存缓存命中 | 小于 1 毫秒 |
-| 模型加载后 RSS | 约 550 MiB |
-| 释放模型后的进程 RSS | 约 40 MiB |
-
-这些是翻译后端耗时；中文自动翻译另有输入防抖和最多 250 毫秒的界面轮询等待。长句、多个未命中片段或游戏占满 CPU 时会更慢。单条原文限制 192 token、最多 8 个模型片段和 128 个输出 token，超限会要求拆成短句，不静默截断。尚未测量真实 Dota 2 对局的帧率影响。
-
-CPU 性能选择参考 [CTranslate2 性能指南](https://opennmt.net/CTranslate2/performance.html) 和 [线程配置](https://opennmt.net/CTranslate2/parallel.html)。
-
-## 聊天词库与粗话
-
-可编辑 `data/dota_chat_lexicon.json`，包括固定短语、Dota 术语、英雄别名、俄语 slang 与粗话。`phrases` 是整句或句中短语；`terms` 是词条。每项的 `zh`、`ru` 为对应译文，`zh_aliases`、`ru_aliases` 是等义变体，`strength` 标记原话强度（0 中性、1 轻度、2 粗话、3 强烈）。增加变体时必须保持相同含义与强度。不要添加模糊单字或把“他妈”等普通语句片段直接作为粗话别名。修改后在界面重新应用本地设置。
-
-| 中文 | 俄语 |
-| --- | --- |
-| 别送了 | не фидь |
-| 你是白痴 | ты идиот |
-| 你是傻逼 | ты долбоёб |
-| 你他妈的别送了 | не фидь, блять |
-| 先开BKB然后打肉山 | сначала жми бкб, потом го рошу |
-
-词库命中的粗话直接保留对应表达，程序没有额外审查、屏蔽或弱化规则，也不会给中性句凭空补骂人话。未命中部分交给 M2M100。通用模型可能误译新 slang、变形粗话、否定句或复杂语境；**不能保证词库外任意句子的攻击强度和俄语口语自然度绝对准确**。可把实际遇到的错误加到固定短语库中。输出保留原文用于核对。
-
-双向缓存使用 SQLite，最多 2000 条记录，只在内存保留最多 256 条热点记录。模型文件变化、词库内容变化或翻译逻辑版本变化会切换独立缓存，不复用旧联网译文。“清空翻译缓存”也涵盖中文→俄语，并阻止清空前的推理回填旧缓存。
-
-## 从源码运行（开发者）
-
-普通用户使用上方 EXE / DMG 即可。下面仅用于修改程序或开发调试。
-
-Windows 源码安装后双击 `launch_app.vbs` 启动。
-
-需要官方 **64 位 CPython 3.12（含 tkinter）**。Inkscape 自带的 Python 使用不同的原生扩展格式，不能用它加载这些推理库。
-
-```powershell
-./install_offline.ps1 -PythonPath 'C:/Path/To/Python312/python.exe'
+```console
+python tools/install_offline_model.py
 ```
 
-安装器把推理依赖放到项目 `vendor/offline`，记住所选 Python 路径供启动器使用（程序内部路径保存为相对路径），下载约 468 MiB 的 INT8 权重及分词文件到 `models/m2m100-418m-ct2-int8`。这是一次性联网安装；文件固定版本且校验 SHA256，下载失败不会用未完成的权重覆盖原文件。两个 Windows 启动器使用同一套路径选择逻辑，优先使用随程序携带的运行环境；旧机器记录的绝对路径失效时仍可使用当前目录的运行环境。
+源码安装阶段需要联网下载依赖和模型，安装完成后翻译全程离线。
 
-模型来自 [固定版本的 CTranslate2 INT8 转换包](https://huggingface.co/JustFrederik/m2m_100_418m_ct2_int8/tree/1aeed44db4dd61a486bba44acf54c76507082a2c)，基础模型是 [Meta M2M100 418M](https://huggingface.co/facebook/m2m100_418M)。运行时只需 CTranslate2、SentencePiece 和本地文件，无需 PyTorch / Transformers。
-
-仅检查已有模型、不联网：
-
-```powershell
-python tools/install_offline_model.py --verify-only
-```
-
-模型、词库或依赖缺失会显示具体原因；启动失败也会显示错误，并在用户数据目录的 `logs/gui_error.log` 保留日志，不会回退联网翻译。
-
-## 目录与迁移
-
-游戏查找不绑定开发者的盘符或用户名。Windows 读取 Steam 注册表位置与当前系统的安装目录；macOS 使用当前用户的 Steam 目录；随后解析新旧格式 `libraryfolders.vdf` 和 Dota 2 的 `appmanifest_570.acf`，覆盖自定义游戏库、外置盘及含中文或空格的路径。保存过的游戏目录每次启动都会重新验证，搬动或失效后重新自动查找；自动查找失败时可以手动选择。查找不会遍历整个硬盘。
-
-模型、词库和运行依赖随程序目录定位，与启动时所在文件夹无关。程序内部的模型路径保存为相对路径；用户手动选择的外部模型和游戏目录只记录在自己的设置中。有旧程序内运行环境记录作依据时，失效的旧程序默认模型路径可恢复为当前程序携带的默认模型；其他缺失的外部模型仍保留原选择并提示缺失。
-
-设置、缓存和日志使用当前用户的数据目录，避免向程序安装目录或 Mac 应用包内写入：
-
-| 系统 | 默认用户数据目录 |
-| --- | --- |
-| Windows | `%LOCALAPPDATA%/Dota2ChatTranslator` |
-| macOS | `~/Library/Application Support/Dota2ChatTranslator` |
-| Linux | `$XDG_DATA_HOME/Dota2ChatTranslator`，未设置时使用 `~/.local/share/Dota2ChatTranslator` |
-
-其中 `config/translator_settings.json` 保存设置，`cache/` 保存翻译缓存，`logs/` 保存启动日志。首次读取时兼容程序目录内的旧设置和匹配模型、词库版本的旧 SQLite 缓存；原文件保留，新用户数据存在后优先使用它。程序目录搬动不会单独改变内置模型的缓存标识；模型文件信息、词库或翻译逻辑变更仍会切换缓存。
-
-测试或特殊部署可设置 `DOTA2_TRANSLATOR_DATA_DIR` 指定用户数据目录，`DOTA2_TRANSLATOR_STEAM_DIR` 指定 Steam 目录，`DOTA2_TRANSLATOR_DOTA_DIR` 指定游戏目录。运行时记录和个人设置不应放进通用发行包。
-
-## 开发验证与平台接口
-
-```powershell
-python tools/run_tests.py
-```
-
-项目专用 Python 测试时设置 `PYTHONPATH=vendor/offline;src`。真实模型性能测试使用 `tools/benchmark_offline.py`，先运行 `.runtime/python/python.exe -m pip install --target vendor/offline -r requirements-dev.txt` 安装可选 `psutil`；该脚本封锁 Python 网络连接入口，输出耗时、RSS 和译例到 `docs/offline_benchmark.json`。记录中的译例用于展示实际质量，不能代表所有游戏聊天。
-
-`M2M100Engine`、`OfflineTranslationProvider`、SQLite 缓存和词库层共用；资源策略单独放在 `platform_runtime.py`。Mac 使用固定较低优先级，重复加载不会继续累加。应用安装目录只读，配置和缓存写入当前用户目录。
-
-Mac 构建在原生 Apple Silicon 和 Intel 的 GitHub Actions 机器上分别进行。`tools/build_macos.py --arch arm64`（Intel 使用 `x86_64`）先校验本地模型，再用 PyInstaller 打包 Python/Tk/原生库与权重，检查应用签名，将应用复制到含中文和空格的其他目录执行离线自检，最后生成 DMG。需先安装 `requirements-build.txt` 并运行模型安装器。不会交叉打包或在每次打开时解压模型。
-
-Windows 构建使用原生 x64 CPython 3.12：安装 `requirements-build.txt`、运行模型安装器和 `tools/install_inno_setup.ps1` 后，运行 `python tools/build_windows.py`。编译工具固定为 Inno Setup 6.7.3 并校验官方安装文件 SHA256。先测试独立移动目录中的程序，再编译中文 EXE，在临时中文路径中实际安装、重复安装、运行离线自检和卸载；测试注册信息与快捷方式使用独立位置，正常安装不会使用这个测试模式。安装包内附运行库和许可证，排除可选 CUDA/cuDNN 库。
-
-`run.py --self-test --report smoke.json` 使用实际模型做双向 INT8 推理、词库强度、Steam/GSI、GUI 和复制检查；阻止 Python 对外网络连接，只允许本机回环。版本标签 `v*` 或手动发布会运行 Windows 和两种 Mac 的回归、原生程序包验证；全部通过后发布三个安装包、SHA256 和自检报告。该自动验证不包含真实 Dota 2 对局。
+[模型来源与许可](packaging/MODEL_NOTICE.txt)

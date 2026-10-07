@@ -134,11 +134,15 @@ jobs:
           else
             RELEASE_TAG="$PACKAGE_TAG"
           fi
+          # Full validation reports stay in the Actions artifacts.
+          shopt -s nullglob
+          PUBLIC_ASSETS=(release/*.exe release/*.dmg release/*.sha256)
+          [[ ${#PUBLIC_ASSETS[@]} -eq 6 ]] || { echo 'Expected three installers and three checksums'; exit 1; }
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             TAG_COMMIT="$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq '.sha')"
             [[ "$TAG_COMMIT" == "$GITHUB_SHA" ]] || { echo 'Increase the package version before publishing changed source'; exit 1; }
-            gh release upload "$RELEASE_TAG" release/* --clobber
+            gh release upload "$RELEASE_TAG" "${PUBLIC_ASSETS[@]}" --clobber
           else
-            gh release create "$RELEASE_TAG" release/* --target "$GITHUB_SHA" --prerelease \
+            gh release create "$RELEASE_TAG" "${PUBLIC_ASSETS[@]}" --target "$GITHUB_SHA" --prerelease \
               --title "$RELEASE_TAG · Windows / Mac 一键安装预览版" --notes-file packaging/release_notes.md
           fi
