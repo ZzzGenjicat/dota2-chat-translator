@@ -62,6 +62,11 @@ class TranslatorApp:
         self.gsi_status_var = tk.StringVar(value="正在检查游戏直读配置…")
         self._rendered_rows: tuple = ()
         self._build_ui()
+        if sys.platform == "darwin":
+            # Tk Aqua resets window levels while mapping native/transient
+            # windows. Restore the user's setting after each window maps.
+            self.root.bind("<Map>", self._on_window_mapped, add="+")
+            self.settings_window.bind("<Map>", self._on_window_mapped, add="+")
         self._restore_window_bounds()
         self._apply_window_settings()
         self._poll_after_id = self.root.after(250, self._poll)
@@ -493,6 +498,10 @@ class TranslatorApp:
         self.settings_window.attributes("-topmost", topmost)
         self.root.attributes("-alpha", float(self.opacity_var.get()))
         self._apply_font_size()
+
+    def _on_window_mapped(self, event: tk.Event) -> None:
+        if not self._closing and event.widget in (self.root, self.settings_window):
+            event.widget.attributes("-topmost", bool(self.always_on_top_var.get()))
 
     def _poll(self) -> None:
         self._poll_after_id = None
