@@ -45,6 +45,14 @@ class TranslatorUiTextTests(unittest.TestCase):
             time.sleep(0.01)
         self.assertFalse(app._gsi_check_pending, "startup check did not finish")
 
+    def _dispose_ui_for_restart(self, root, app) -> None:
+        # Test the fresh app/settings lifecycle while keeping one native Tk
+        # interpreter: Tk Aqua cannot safely recreate Tk within one process.
+        app._cancel_callbacks()
+        app.controller.close()
+        for child in root.winfo_children():
+            child.destroy()
+
     def test_installed_config_hides_install_button_without_rewriting(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             dota = Path(tmp)
@@ -69,50 +77,53 @@ class TranslatorUiTextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             dota = Path(tmp)
             (dota / "cfg").mkdir()
-            for initial_state in ("missing", "invalid"):
-                with self.subTest(initial_state=initial_state):
-                    if initial_state == "invalid":
-                        target = install_gsi_config(dota)
-                        target.write_text('"broken" {', encoding="utf-8")
-                    root = tk.Tk()
-                    root.withdraw()
-                    with patch("dota2_map_assistant.translator_app.find_dota_dir", return_value=dota):
-                        app = TranslatorApp(root)
-                        try:
-                            self._wait_for_gsi_check(root, app)
-                            self.assertEqual(app.gsi_install_button.winfo_manager(), "pack")
-                            self.assertIn("一次", app.gsi_status_var.get())
-                            self.assertIn("重启 Dota 2", app.gsi_status_var.get())
-                            self.assertEqual(app.gsi_install_button.cget("text"),
-                                             "安装游戏直读配置" if initial_state == "missing" else "修复游戏直读配置")
-                            app.gsi_install_button.invoke()
-                            self.assertEqual(app.gsi_install_button.winfo_manager(), "")
-                            self.assertIn("重启 Dota 2", app.gsi_status_var.get())
-                            target = app._gsi_check.path
-                            self.assertTrue(target.is_file())
-                        finally:
-                            app.controller.close()
-                            root.destroy()
+            root = tk.Tk()
+            root.withdraw()
+            try:
+                for initial_state in ("missing", "invalid"):
+                    with self.subTest(initial_state=initial_state):
+                        if initial_state == "invalid":
+                            target = install_gsi_config(dota)
+                            target.write_text('"broken" {', encoding="utf-8")
+                        with patch("dota2_map_assistant.translator_app.find_dota_dir", return_value=dota):
+                            app = TranslatorApp(root)
+                            try:
+                                self._wait_for_gsi_check(root, app)
+                                self.assertEqual(app.gsi_install_button.winfo_manager(), "pack")
+                                self.assertIn("一次", app.gsi_status_var.get())
+                                self.assertIn("重启 Dota 2", app.gsi_status_var.get())
+                                self.assertEqual(app.gsi_install_button.cget("text"),
+                                                 "安装游戏直读配置" if initial_state == "missing" else "修复游戏直读配置")
+                                app.gsi_install_button.invoke()
+                                self.assertEqual(app.gsi_install_button.winfo_manager(), "")
+                                self.assertIn("重启 Dota 2", app.gsi_status_var.get())
+                                self.assertTrue(app._gsi_check.path.is_file())
+                            finally:
+                                self._dispose_ui_for_restart(root, app)
+            finally:
+                root.destroy()
 
     def test_next_startup_detects_config_removed_since_last_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             dota = Path(tmp)
             (dota / "cfg").mkdir()
             target = install_gsi_config(dota)
-            for expected_state in ("installed", "missing"):
-                root = tk.Tk()
-                root.withdraw()
-                with patch("dota2_map_assistant.translator_app.find_dota_dir", return_value=dota):
-                    app = TranslatorApp(root)
-                    try:
-                        self._wait_for_gsi_check(root, app)
-                        self.assertEqual(app._gsi_check.state, expected_state)
-                        self.assertEqual(bool(app.gsi_install_button.winfo_manager()), expected_state == "missing")
-                    finally:
-                        app.controller.close()
-                        root.destroy()
-                if target.exists():
-                    target.unlink()
+            root = tk.Tk()
+            root.withdraw()
+            try:
+                for expected_state in ("installed", "missing"):
+                    with patch("dota2_map_assistant.translator_app.find_dota_dir", return_value=dota):
+                        app = TranslatorApp(root)
+                        try:
+                            self._wait_for_gsi_check(root, app)
+                            self.assertEqual(app._gsi_check.state, expected_state)
+                            self.assertEqual(bool(app.gsi_install_button.winfo_manager()), expected_state == "missing")
+                        finally:
+                            self._dispose_ui_for_restart(root, app)
+                    if target.exists():
+                        target.unlink()
+            finally:
+                root.destroy()
 
     def test_unfound_game_offers_retry_without_attempting_install(self) -> None:
         root = tk.Tk()
@@ -221,10 +232,7 @@ class TranslatorUiTextTests(unittest.TestCase):
                 saved = json.loads(app.settings_path.read_text(encoding="utf-8"))
                 self.assertEqual(saved["dota_game_dir"], str(dota))
             finally:
-                app.controller.close()
-                root.destroy()
-            root = tk.Tk()
-            root.withdraw()
+                self._dispose_ui_for_restart(root, app)
             with patch("dota2_map_assistant.translator_app.find_dota_dir", wraps=find_dota_dir) as finder:
                 app = TranslatorApp(root)
                 try:
@@ -274,12 +282,15 @@ class TranslatorUiTextTests(unittest.TestCase):
 
     def test_settings_window_stays_above_always_on_top_main_window(self) -> None:
         root = tk.Tk()
-        root.withdraw()
         app = TranslatorApp(root)
         try:
             app.always_on_top_var.set(True)
             app._apply_window_settings()
             app._toggle_settings()
+            deadline = time.monotonic() + 2
+            while not app.settings_window.attributes("-topmost") and time.monotonic() < deadline:
+                root.update()
+                time.sleep(0.01)
             self.assertTrue(bool(app.settings_window.attributes("-topmost")))
         finally:
             app.controller.close()
@@ -471,6 +482,29 @@ class TranslatorUiTextTests(unittest.TestCase):
         app = TranslatorApp(root)
         try:
             self.assertIs(app.controller.translation_cache, app.outgoing_translator.provider.cache)
+        finally:
+            app.controller.close()
+            root.destroy()
+
+    def test_starting_translation_now_cancels_pending_automatic_translation(self) -> None:
+        root = tk.Tk()
+        app = TranslatorApp(root)
+        calls = []
+        try:
+            def translate(text, backend, model):
+                calls.append(text)
+                return "Го мид"
+
+            app.outgoing_translator.translate = translate
+            app.outgoing_input.insert("1.0", "去中路")
+            root.update()
+            app._start_outgoing_translation()
+            deadline = time.monotonic() + 0.8
+            while time.monotonic() < deadline:
+                root.update()
+                time.sleep(0.01)
+            self.assertEqual(app.outgoing_result, "Го мид")
+            self.assertEqual(calls, ["去中路"])
         finally:
             app.controller.close()
             root.destroy()

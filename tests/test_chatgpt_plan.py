@@ -32,6 +32,13 @@ from dota2_map_assistant.chatgpt_plan import (
 
 
 class ChatGPTPlanTests(unittest.TestCase):
+    def setUp(self):
+        # Local callback fixtures use a numeric loopback address. Hostname
+        # resolution is unrelated to OAuth and can stall on hosted Mac runners.
+        resolver = patch("http.server.socket.getfqdn", side_effect=lambda host: host)
+        resolver.start()
+        self.addCleanup(resolver.stop)
+
     def test_oauth_https_request_has_trusted_root_certificates(self):
         class Response:
             def __enter__(self): return self
@@ -128,6 +135,7 @@ class ChatGPTPlanTests(unittest.TestCase):
             self.assertEqual(len(list(path.parent.glob("auth.dat.unreadable-*"))), 1)
             self.assertEqual(store.load()["host_id"], auth.data["host_id"])
 
+    @unittest.skipUnless(os.name == "nt", "Windows DPAPI")
     def test_unreadable_credentials_keep_the_same_host_id_after_restart(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "auth.dat"

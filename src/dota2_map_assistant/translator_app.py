@@ -384,6 +384,8 @@ class TranslatorApp:
         self._outgoing_after_id = self.root.after(450, self._start_outgoing_translation)
 
     def _start_outgoing_translation(self) -> None:
+        if self._outgoing_after_id is not None:
+            self.root.after_cancel(self._outgoing_after_id)
         self._outgoing_after_id = None
         if self._closing or self._outgoing_inflight:
             return
