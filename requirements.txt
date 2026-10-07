@@ -1,0 +1,5 @@
+Pillow>=10
+certifi>=2024.2
+ctranslate2==4.8.2
+sentencepiece==0.2.1
+numpy>=2,<3

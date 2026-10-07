@@ -1,0 +1,14 @@
+M2M100 418M offline translation model
+
+Base model: Meta / facebook/m2m100_418M
+https://huggingface.co/facebook/m2m100_418M
+The base model repository identifies its license as MIT.
+
+CTranslate2 INT8 conversion: JustFrederik/m2m_100_418m_ct2_int8
+https://huggingface.co/JustFrederik/m2m_100_418m_ct2_int8
+Pinned revision: 1aeed44db4dd61a486bba44acf54c76507082a2c
+SHA256 checksums and origin are recorded in models/m2m100-418m-ct2-int8/manifest.json.
+
+The application uses CTranslate2 (MIT), SentencePiece (Apache-2.0),
+NumPy (BSD), Python (PSF) and Tcl/Tk. These are separate third-party components.
+Bundled third-party license files are included under THIRD_PARTY_LICENSES.

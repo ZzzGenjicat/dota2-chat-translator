@@ -1,0 +1,26 @@
+# Explicit allowlist for the initial translator repository publication.
+# Git ignores still apply. Never add the workspace as a whole.
+.gitattributes
+.gitignore
+.github/
+README.md
+pyproject.toml
+requirements.txt
+requirements-dev.txt
+requirements-build.txt
+run.py
+install_offline.ps1
+install_offline.command
+launch_app.bat
+launch_app.vbs
+launch_app.command
+src/
+tests/
+data/dota_chat_lexicon.json
+tools/install_offline_model.py
+tools/install_offline_macos.sh
+tools/build_macos.py
+tools/benchmark_offline.py
+packaging/
+docs/superpowers/specs/2026-10-07-macos-release-design.md
+docs/superpowers/plans/2026-10-07-macos-release.md
