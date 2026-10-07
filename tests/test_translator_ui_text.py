@@ -204,7 +204,8 @@ class TranslatorUiTextTests(unittest.TestCase):
                 with self.subTest(state=state):
                     app._show_gsi_check(GsiConfigCheck(state))
                     root.update_idletasks()
-                    controls = [app.start_button, app.settings_button, app.offline_translation_button]
+                    controls = [app.start_button, app.settings_button, app.offline_translation_button,
+                                app.copy_outgoing_button]
                     if state != "installed":
                         controls.append(app.gsi_install_button)
                     for widget in controls:
@@ -311,6 +312,24 @@ class TranslatorUiTextTests(unittest.TestCase):
             root.update()
             self.assertGreaterEqual(app.settings_window.winfo_rootx(), root.winfo_rootx())
             self.assertLess(app.settings_window.winfo_rootx(), root.winfo_rootx() + root.winfo_width())
+        finally:
+            app.controller.close()
+            root.destroy()
+
+    def test_main_actions_fit_on_a_small_screen(self) -> None:
+        root = tk.Tk()
+        app = TranslatorApp(root)
+        try:
+            root.maxsize(1008, 712)
+            root.geometry('1008x712+30+30')
+            self._wait_for_gsi_check(root, app)
+            root.update()
+            for control in (app.start_button, app.settings_button, app.copy_outgoing_button):
+                with self.subTest(control=control['text']):
+                    self.assertGreaterEqual(control.winfo_height(), control.winfo_reqheight())
+                    self.assertGreaterEqual(control.winfo_width(), control.winfo_reqwidth())
+            self.assertGreaterEqual(app.outgoing_input.winfo_height(), app.outgoing_input.winfo_reqheight())
+            self.assertGreaterEqual(app.feed.winfo_height(), 40)
         finally:
             app.controller.close()
             root.destroy()

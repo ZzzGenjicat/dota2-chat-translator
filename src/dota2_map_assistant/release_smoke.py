@@ -136,8 +136,15 @@ def run_checks() -> dict:
                 if root.clipboard_get() != zh_ru:
                     raise AssertionError('Russian clipboard copy failed')
                 for control in (app.start_button, app.settings_button, app.copy_outgoing_button):
-                    if control.winfo_height() < control.winfo_reqheight():
-                        raise AssertionError('A primary control is clipped')
+                    if (control.winfo_height() < control.winfo_reqheight()
+                            or control.winfo_width() < control.winfo_reqwidth()):
+                        raise AssertionError(
+                            f'A primary control is clipped: {control["text"]!r}, '
+                            f'height={control.winfo_height()}, required={control.winfo_reqheight()}, '
+                            f'width={control.winfo_width()}, required={control.winfo_reqwidth()}, '
+                            f'window={root.geometry()}, maximum={root.maxsize()}, '
+                            f'screen={root.winfo_screenwidth()}x{root.winfo_screenheight()}, '
+                            f'scaling={root.tk.call("tk", "scaling")}, font={app.ui_font}')
                 result['checks']['ui'] = {'font': app.ui_font, 'clipboard': True, 'tk': root.tk.call('info', 'patchlevel')}
         finally:
             if listener is not None:

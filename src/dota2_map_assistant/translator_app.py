@@ -147,9 +147,9 @@ class TranslatorApp:
                                                     style='App.TButton')
         self.offline_translation_button.pack(fill=tk.X, pady=(0, 12))
         self.settings_button = ttk.Button(side, text="更多设置", command=self._toggle_settings, style="App.TButton")
-        self.settings_button.pack(fill=tk.X, side=tk.BOTTOM, pady=(9, 0))
+        self.settings_button.pack(fill=tk.X, side=tk.BOTTOM, pady=(5, 0))
         self.start_button = ttk.Button(side, text="开始抓取", command=self._toggle_capture, style="Accent.TButton")
-        self.start_button.pack(fill=tk.X, side=tk.BOTTOM, pady=(18, 0))
+        self.start_button.pack(fill=tk.X, side=tk.BOTTOM, pady=(8, 0))
 
         self.settings_window = tk.Toplevel(self.root)
         self.settings_window.title("翻译设置")
@@ -214,7 +214,8 @@ class TranslatorApp:
 
         composer = tk.Frame(main, background=COLORS["surface"], highlightbackground=COLORS["line"],
                             highlightthickness=1, padx=14, pady=10)
-        composer.pack(fill=tk.X, pady=(12, 0))
+        # Reserve the composer before the flexible feed can consume its space.
+        composer.pack(side=tk.BOTTOM, fill=tk.X, pady=(12, 0), before=self.feed_header)
         heading = ttk.Frame(composer, style="Surface.TFrame")
         heading.pack(fill=tk.X, pady=(0, 6))
         ttk.Label(heading, text="发言翻译  ·  中文 → 俄语", style="Section.TLabel").pack(side=tk.LEFT)
@@ -233,12 +234,12 @@ class TranslatorApp:
         self.outgoing_output.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.copy_outgoing_button = ttk.Button(result_row, text="复制俄语", command=self._copy_outgoing,
                                                 style="App.TButton", state=tk.DISABLED)
-        self.copy_outgoing_button.pack(side=tk.RIGHT, padx=(8, 0))
+        self.copy_outgoing_button.pack(side=tk.RIGHT, padx=(8, 0), before=self.outgoing_output)
         self.outgoing_status_var = tk.StringVar(value="输入中文后自动翻译")
         ttk.Label(composer, textvariable=self.outgoing_status_var, style="SurfaceMuted.TLabel").pack(anchor=tk.W)
 
         status = ttk.Frame(outer, style="App.TFrame")
-        status.pack(fill=tk.X, pady=(14, 0))
+        status.pack(side=tk.BOTTOM, fill=tk.X, pady=(14, 0), before=body)
         ttk.Label(status, textvariable=self.status_var, style="Muted.TLabel").pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     def _begin_gsi_check(self) -> None:
