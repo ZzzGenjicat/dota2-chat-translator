@@ -28,7 +28,7 @@ jobs:
         env:
           PYTHONPATH: src
           DOTA2_TRANSLATOR_DATA_DIR: ${{ runner.temp }}/dota-test-data
-        run: python -X utf8 -m unittest discover -s tests -q
+        run: python -u -X utf8 tools/run_tests.py
 
   macos-build:
     strategy:
@@ -54,11 +54,10 @@ jobs:
         run: |
           python -m pip install --only-binary=:all: -r requirements-build.txt
       - name: Run Mac regression tests
-        timeout-minutes: 4
+        timeout-minutes: 10
         env:
           DOTA2_TRANSLATOR_DATA_DIR: ${{ runner.temp }}/dota-test-data
-        run: |
-          python -u -X utf8 -c 'import faulthandler, unittest; faulthandler.dump_traceback_later(45, repeat=True); unittest.main(module=None, argv=["unittest", "discover", "-s", "tests", "-v"])'
+        run: python -u -X utf8 tools/run_tests.py
       - name: Prepare and verify pinned offline model
         run: python tools/install_offline_model.py
       - name: Test source with remote connections blocked

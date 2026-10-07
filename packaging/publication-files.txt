@@ -20,6 +20,7 @@ data/dota_chat_lexicon.json
 tools/install_offline_model.py
 tools/install_offline_macos.sh
 tools/build_macos.py
+tools/run_tests.py
 tools/benchmark_offline.py
 packaging/
 docs/superpowers/specs/2026-10-07-macos-release-design.md

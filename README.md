@@ -97,7 +97,7 @@ python tools/install_offline_model.py --verify-only
 ## 开发验证与平台接口
 
 ```powershell
-python -m unittest discover -s tests -q
+python tools/run_tests.py
 ```
 
 项目专用 Python 测试时设置 `PYTHONPATH=vendor/offline;src`。真实模型性能测试使用 `tools/benchmark_offline.py`，先运行 `.runtime/python/python.exe -m pip install --target vendor/offline -r requirements-dev.txt` 安装可选 `psutil`；该脚本封锁 Python 网络连接入口，输出耗时、RSS 和译例到 `docs/offline_benchmark.json`。记录中的译例用于展示实际质量，不能代表所有游戏聊天。
