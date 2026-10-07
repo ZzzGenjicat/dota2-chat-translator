@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-from importlib import metadata
 import json
 from pathlib import Path
 import platform
@@ -12,41 +11,11 @@ import subprocess
 import sys
 import tempfile
 import tomllib
-from urllib.request import urlopen
 
 from install_offline_model import install
+from package_licenses import collect_licenses
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def collect_licenses() -> None:
-    destination = ROOT / 'build' / 'third-party-licenses'
-    destination.mkdir(parents=True, exist_ok=True)
-    versions = {}
-    for name in ('ctranslate2', 'sentencepiece', 'numpy', 'Pillow', 'certifi', 'pyinstaller'):
-        distribution = metadata.distribution(name)
-        versions[name] = distribution.version
-        for entry in distribution.files or ():
-            if entry.name.lower().startswith(('license', 'copying', 'notice')):
-                source = Path(distribution.locate_file(entry))
-                if source.is_file():
-                    target = destination / name / Path(*[part for part in entry.parts if part not in ('.', '..')])
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(source, target)
-    # Some binary wheels omit upstream license texts. Include their pinned originals.
-    license_urls = {
-        'CTranslate2-MIT.txt': 'https://raw.githubusercontent.com/OpenNMT/CTranslate2/v4.8.2/LICENSE',
-        'SentencePiece-Apache-2.0.txt': 'https://raw.githubusercontent.com/google/sentencepiece/v0.2.1/LICENSE',
-        'M2M100-Meta-MIT.txt': 'https://raw.githubusercontent.com/facebookresearch/fairseq/v0.12.2/LICENSE',
-        'Python-PSF.txt': f'https://raw.githubusercontent.com/python/cpython/v{platform.python_version()}/LICENSE',
-        'Tcl.txt': 'https://raw.githubusercontent.com/tcltk/tcl/core-8-6-16/license.terms',
-        'Tk.txt': 'https://raw.githubusercontent.com/tcltk/tk/core-8-6-16/license.terms',
-    }
-    for name, url in license_urls.items():
-        with urlopen(url, timeout=60) as response:
-            data = response.read(1024 * 1024)
-        (destination / name).write_bytes(data)
-    (destination / 'versions.json').write_text(json.dumps(versions, indent=2), encoding='utf-8')
 
 
 def build(expected_arch: str) -> None:
@@ -59,7 +28,7 @@ def build(expected_arch: str) -> None:
     test_root = tk.Tk()
     test_root.destroy()
     install(ROOT / 'models' / 'm2m100-418m-ct2-int8', verify_only=True)
-    collect_licenses()
+    collect_licenses(ROOT)
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm',
                     '--distpath', str(ROOT / 'dist'), '--workpath', str(ROOT / 'build' / 'pyinstaller'),
                     str(ROOT / 'packaging' / 'macos.spec')], cwd=ROOT, check=True)

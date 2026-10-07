@@ -29,6 +29,11 @@ class TranslatorUiTextTests(unittest.TestCase):
         data_env = patch.dict(os.environ, {"DOTA2_TRANSLATOR_DATA_DIR": data.name})
         data_env.start()
         self.addCleanup(data_env.stop)
+        # Fresh UI tests must not import a developer's old window position.
+        legacy = patch('dota2_map_assistant.translator_app.LEGACY_SETTINGS_PATH',
+                       Path(data.name) / 'legacy-settings.json')
+        legacy.start()
+        self.addCleanup(legacy.stop)
         finder = patch("dota2_map_assistant.translator_app.find_dota_dir", return_value=None)
         finder.start()
         self.addCleanup(finder.stop)

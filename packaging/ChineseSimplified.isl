@@ -1,0 +1,62 @@
+; Project-owned translations for the installation and uninstall flows we use.
+; Inno's pinned Default.isl supplies less common diagnostic messages.
+[LangOptions]
+LanguageName=简体中文
+LanguageID=$0804
+LanguageCodePage=936
+DialogFontName=Microsoft YaHei UI
+
+[Messages]
+SetupAppTitle=安装
+SetupWindowTitle=安装 - %1
+UninstallAppTitle=卸载
+UninstallAppFullTitle=卸载 %1
+InformationTitle=提示
+ConfirmTitle=确认
+ErrorTitle=错误
+SetupLdrStartupMessage=即将安装 %1，是否继续？
+ButtonBack=上一步(&B)
+ButtonNext=下一步(&N)
+ButtonInstall=安装(&I)
+ButtonOK=确定
+ButtonCancel=取消
+ButtonFinish=完成(&F)
+ButtonYes=是(&Y)
+ButtonNo=否(&N)
+ButtonBrowse=浏览(&B)...
+ExitSetupTitle=退出安装
+ExitSetupMessage=安装尚未完成，是否退出？
+WizardReady=准备安装
+ReadyLabel2b=点击“安装”开始安装。
+ReadyMemoDir=安装位置：
+ReadyMemoGroup=开始菜单：
+WizardPreparing=正在准备安装
+PreparingDesc=正在准备安装 [name]。
+ApplicationsFound=以下程序正在使用需要更新的文件。建议先关闭这些程序，再继续安装。
+CloseApplications=自动关闭这些程序(&A)
+DontCloseApplications=不要关闭这些程序(&D)
+ErrorCloseApplications=无法自动关闭所有程序，请先关闭正在使用待更新文件的程序。
+WizardInstalling=正在安装
+InstallingLabel=正在安装 [name]，请稍候。
+FinishedHeadingLabel=安装完成
+FinishedLabel=已安装 [name]。以后可从桌面或开始菜单打开。
+FinishedLabelNoIcons=已安装 [name]。
+ClickFinish=点击“完成”退出安装。
+StatusClosingApplications=正在关闭程序...
+StatusCreateDirs=正在创建文件夹...
+StatusExtractFiles=正在复制程序和离线模型...
+StatusCreateIcons=正在创建快捷方式...
+StatusCreateRegistryEntries=正在登记应用...
+StatusSavingUninstall=正在保存卸载信息...
+StatusRunProgram=正在完成安装...
+StatusRollback=正在撤销安装...
+SetupAborted=安装未完成。请解决问题后重新运行安装包。
+DiskSpaceWarningTitle=磁盘空间不足
+DiskSpaceWarning=安装需要 %1 KB 可用空间，但磁盘只有 %2 KB。是否继续？
+CannotContinue=无法继续安装，请点击“取消”退出。
+ConfirmUninstall=是否卸载 %1？个人设置、缓存和游戏直读配置会保留。
+UninstallStatusLabel=正在卸载 %1，请稍候。
+UninstalledAll=已卸载 %1。
+UninstalledMost=已完成 %1 的卸载。%n%n部分文件未能删除，可稍后手动删除。
+UninstallDisplayNameMark64Bit=64 位
+UninstallDisplayNameMarkCurrentUser=当前用户

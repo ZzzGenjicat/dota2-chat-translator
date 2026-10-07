@@ -4,22 +4,30 @@
 
 ## 开始使用
 
-1. Windows 首次使用先准备本地模型和运行环境（见下方安装步骤），之后双击 `launch_app.vbs` 即可使用。若已安装或正在运行旧版，无需重复下载；关闭后重新打开即可。
+普通用户从 [v0.3.2 安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.3.2) 选择适合自己电脑的文件：
+
+| 电脑 | 下载文件 | 安装方法 |
+| --- | --- | --- |
+| Windows 10 / 11，64 位 | [Windows 安装 EXE](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-windows-x64-setup.exe) | 双击，点“安装”，完成后从桌面或开始菜单打开 |
+| Mac，Apple 芯片（M1 / M2 / M3 / M4 等） | [Apple 芯片 DMG](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-macos-arm64.dmg) | 打开 DMG，把应用拖到“应用程序”后打开 |
+| Mac，Intel 处理器 | [Intel Mac DMG](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.2/Dota2ChatTranslator-0.3.2-macos-x86_64.dmg) | 打开 DMG，把应用拖到“应用程序”后打开 |
+
+三个安装包均已包含离线模型和运行环境，**不用安装 Python，不用额外下载模型**。下载到电脑后，安装和日常翻译都可离线进行。Mac 需要 **macOS 14 或更新版本**；点击左上角苹果图标 →“关于本机”，查看“芯片”或“处理器”以选择版本。Windows ARM 电脑暂不支持。
+
+**不要点 Code → Download ZIP，也不要下载 Source code (zip / tar.gz)**：它们是开发者源码，不是安装包。`.sha256` 和 `.json` 是校验文件与测试报告，普通用户无需下载。
+
+1. 按上表安装并打开程序。Windows 安装器自动创建快捷方式，重复运行可重新安装；卸载可在系统“已安装的应用”中进行。Mac 卸载时将应用移到废纸篓。两者的个人设置、缓存和游戏直读配置会保留。
 2. 每次打开会在后台检查游戏直读配置：已安装则隐藏安装按钮；缺失或异常时显示“安装游戏直读配置”或“修复游戏直读配置”，并给出说明。通常只需安装一次，安装或修复后重启 Dota 2，再点击“开始抓取”。检查不会改写游戏文件；找不到游戏时可点击标题旁的“选择目录”，选择 Dota 2 安装目录（`dota 2 beta`、`game` 或 `game/dota`），会验证并记住这个选择。游戏把聊天事件发送到本机 `127.0.0.1:47854`。原文和译文按时间显示；聊天轮盘和不含俄文的消息会过滤。
 3. 程序启动会后台预热模型；可看左侧状态或手动点击“预热本地模型”。下方输入中文，停顿 450 毫秒后自动翻译，点击“复制俄语”再粘贴到游戏。
 4. “更多设置”中可选择模型文件夹和 1–4 个 CPU 线程，默认 2。点击“应用本地设置 / 重载词库”后生效。也可调整置顶、透明度、字号并清空文字或翻译缓存。
 
 游戏直读使用原有 GSI 配置，不读取游戏进程内存；聊天正文不会发往远程翻译服务。游戏直读是否收到消息仍取决于 Dota 2 实际推送的事件。
 
-## Mac 版本
+安装包内附首次使用说明。本预览版尚无 Windows 发布者证书，Mac 尚未经过 Apple Developer ID 签名或公证。若首次打开被系统拦截：Windows 在该安装文件的“更多信息”中查看“仍要运行”；Mac 尝试打开一次后，在“系统设置 → 隐私与安全性”查看这个应用的“仍要打开”。不要关闭系统整体保护。安装包构建和验证细节见[验证记录](docs/installer-verification.md)。
 
-已发布 [v0.3.1 Mac 本地离线预览版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.3.1)，两种架构的原生构建和应用包离线自检均通过，详见[验证记录](docs/macos-verification.md)。
+## Mac 使用说明
 
-从 [GitHub Releases](https://github.com/ZzzGenjicat/dota2-chat-translator/releases) 下载 Mac 安装包：Apple 芯片选 `macos-arm64.dmg`，Intel Mac 选 `macos-x86_64.dmg`。需要 **macOS 14 或更新版本**。打开 DMG，把 `Dota2ChatTranslator` 拖到 Applications（应用程序），随后打开即可。模型和运行环境已经包含，无需 Python、Homebrew 或首次启动下载。
-
-第一次使用仍需按界面提示安装一次游戏直读配置并重启 Dota 2。复制俄语后，在游戏中用 **Command+V** 粘贴。不需要屏幕录制或辅助功能权限。中文字体、Steam 自定义游戏库和用户数据目录按 Mac 处理，默认 CPU INT8、2 线程、空闲 3 分钟卸载模型。
-
-Mac 预览版使用临时本地签名，尚未使用 Apple Developer ID 签名或公证。首次启动被系统阻止时，尝试打开一次后，到“系统设置 → 隐私与安全性”查看针对这个应用的“仍要打开”；不要关闭系统整体保护。DMG 内附完整首次使用说明。真实 Dota 2 对局的聊天推送与帧率影响仍需实机验证。
+复制俄语后，在游戏中用 **Command+V** 粘贴。不需要屏幕录制或辅助功能权限。中文字体、Steam 自定义游戏库和用户数据目录按 Mac 处理，默认 CPU INT8、2 线程、空闲 3 分钟卸载模型。
 
 需要从源码运行时，安装 python.org 的 Python 3.12（含 Tk），双击 `install_offline.command` 一次，之后双击 `launch_app.command`。源码安装阶段会下载依赖和校验模型；日常运行不会联网翻译。也可通过 `DOTA2_TRANSLATOR_PYTHON` 指定 Python 3.12 路径。
 
@@ -58,7 +66,11 @@ CPU 性能选择参考 [CTranslate2 性能指南](https://opennmt.net/CTranslate
 
 双向缓存使用 SQLite，最多 2000 条记录，只在内存保留最多 256 条热点记录。模型文件变化、词库内容变化或翻译逻辑版本变化会切换独立缓存，不复用旧联网译文。“清空翻译缓存”也涵盖中文→俄语，并阻止清空前的推理回填旧缓存。
 
-## 在其他 Windows 电脑安装
+## 从源码运行（开发者）
+
+普通用户使用上方 EXE / DMG 即可。下面仅用于修改程序或开发调试。
+
+Windows 源码安装后双击 `launch_app.vbs` 启动。
 
 需要官方 **64 位 CPython 3.12（含 tkinter）**。Inkscape 自带的 Python 使用不同的原生扩展格式，不能用它加载这些推理库。
 
@@ -108,4 +120,6 @@ python tools/run_tests.py
 
 Mac 构建在原生 Apple Silicon 和 Intel 的 GitHub Actions 机器上分别进行。`tools/build_macos.py --arch arm64`（Intel 使用 `x86_64`）先校验本地模型，再用 PyInstaller 打包 Python/Tk/原生库与权重，检查应用签名，将应用复制到含中文和空格的其他目录执行离线自检，最后生成 DMG。需先安装 `requirements-build.txt` 并运行模型安装器。不会交叉打包或在每次打开时解压模型。
 
-`run.py --self-test --report smoke.json` 使用实际模型做双向 INT8 推理、词库强度、Steam/GSI、GUI 和复制检查；阻止 Python 对外网络连接，只允许本机回环。版本标签 `v*` 会运行 Windows 回归测试、两种 Mac 的源码和应用包验证；全部通过后发布安装包、SHA256 和自检报告。该自动验证不包含真实 Dota 2 对局。
+Windows 构建使用原生 x64 CPython 3.12：安装 `requirements-build.txt`、运行模型安装器和 `tools/install_inno_setup.ps1` 后，运行 `python tools/build_windows.py`。编译工具固定为 Inno Setup 6.7.3 并校验官方安装文件 SHA256。先测试独立移动目录中的程序，再编译中文 EXE，在临时中文路径中实际安装、重复安装、运行离线自检和卸载；测试注册信息与快捷方式使用独立位置，正常安装不会使用这个测试模式。安装包内附运行库和许可证，排除可选 CUDA/cuDNN 库。
+
+`run.py --self-test --report smoke.json` 使用实际模型做双向 INT8 推理、词库强度、Steam/GSI、GUI 和复制检查；阻止 Python 对外网络连接，只允许本机回环。版本标签 `v*` 或手动发布会运行 Windows 和两种 Mac 的回归、原生程序包验证；全部通过后发布三个安装包、SHA256 和自检报告。该自动验证不包含真实 Dota 2 对局。

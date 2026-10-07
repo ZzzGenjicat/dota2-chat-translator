@@ -1,4 +1,4 @@
-name: Native Mac offline release
+name: Windows and Mac offline installers
 
 on:
   push:
@@ -15,20 +15,48 @@ permissions:
   contents: read
 
 jobs:
-  windows-regression:
+  windows-build:
     runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: src
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: |
-          python -m pip install --only-binary=:all: -r requirements.txt
+      - name: Install native build dependencies
+        run: |
+          python -m pip install --only-binary=:all: -r requirements-build.txt
       - name: Run Windows regression tests
+        timeout-minutes: 10
         env:
-          PYTHONPATH: src
           DOTA2_TRANSLATOR_DATA_DIR: ${{ runner.temp }}/dota-test-data
         run: python -u -X utf8 tools/run_tests.py
+      - name: Prepare and verify pinned offline model
+        run: python tools/install_offline_model.py
+      - name: Install verified installer compiler
+        run: ./tools/install_inno_setup.ps1
+      - name: Build and test relocated app, installation, reinstallation and uninstall
+        run: python -u tools/build_windows.py
+      - name: Save validated installer and reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows-x64
+          path: release/*
+          if-no-files-found: error
+          compression-level: 0
+      - name: Save diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-windows-x64
+          path: |
+            release/*-smoke.json
+            release/*-installer.json
+            build/installer-diagnostics/*
+            build/pyinstaller/**/warn-*.txt
+          if-no-files-found: ignore
 
   macos-build:
     strategy:
@@ -67,7 +95,7 @@ jobs:
       - name: Save validated installers and reports
         uses: actions/upload-artifact@v4
         with:
-          name: macos-${{ matrix.arch }}
+          name: installer-macos-${{ matrix.arch }}
           path: release/*
           if-no-files-found: error
           compression-level: 0
@@ -84,7 +112,7 @@ jobs:
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish)
-    needs: [windows-regression, macos-build]
+    needs: [windows-build, macos-build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -92,10 +120,10 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v4
         with:
-          pattern: macos-*
+          pattern: installer-*
           path: release
           merge-multiple: true
-      - name: Publish tested Mac preview
+      - name: Publish tested Windows and Mac installers
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
@@ -112,5 +140,5 @@ jobs:
             gh release upload "$RELEASE_TAG" release/* --clobber
           else
             gh release create "$RELEASE_TAG" release/* --target "$GITHUB_SHA" --prerelease \
-              --title "$RELEASE_TAG · Mac 本地离线预览版" --notes-file packaging/release_notes.md
+              --title "$RELEASE_TAG · Windows / Mac 一键安装预览版" --notes-file packaging/release_notes.md
           fi
