@@ -98,6 +98,32 @@ def run_checks() -> dict:
                 if 'долбо' not in insult.lower():
                     raise AssertionError('Bundled profanity lexicon lost original strength')
                 result['checks']['lexicon'] = True
+                incoming = OfflineTranslationProvider(engine, provider.cache, 'zh', lexicon)
+                quality_cases = [
+                    ('rus', 'У ТИМБЕРА СОФТ', '伐木机开挂了'),
+                    ('rus', 'чЕРТ', '该死'),
+                    ('rus', 'софт', '外挂'),
+                    ('rus', 'выблядки с читами', '开挂的杂种'),
+                    ('rus', 'соси', '含屌去'),
+                    ('rus', 'на аксе', '玩斧王的'),
+                    ('rus', 'у лины софт', '莉娜开挂了'),
+                    ('rus', 'у акса нет читов', '斧王没开挂'),
+                    ('rus', 'он не читер', '他没开挂'),
+                    ('rus', 'мы все накинем', '我们都会加上（具体所指不明）'),
+                    ('rus', 'потипай', 'потипай（含义不明）'),
+                    ('zho', '请跟我一起守住高地', 'дефайте хг со мной'),
+                    ('zho', '等我把装备出完再打', 'дайте мне дофармить, потом дерёмся'),
+                    ('zho', '对面只有一个人能买活', 'у них байбек только у одного'),
+                    ('zho', '我刚才按错技能了', 'я мискликнул скилл'),
+                ]
+                quality_results = []
+                for language, text, expected in quality_cases:
+                    translator = incoming if language == 'rus' else provider
+                    actual = translator.translate(text, language)
+                    if actual != expected or translator.translate(text, language) != expected:
+                        raise AssertionError(f'Bundled chat translation regression: {text!r} -> {actual!r}, expected {expected!r}')
+                    quality_results.append({'source': text, 'translation': actual})
+                result['checks']['chat_quality'] = quality_results
                 if find_dota_dir() != dota.resolve():
                     raise AssertionError('Steam discovery failed in Unicode library')
                 install_gsi_config(dota)

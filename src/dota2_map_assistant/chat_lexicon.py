@@ -146,7 +146,7 @@ class ChatLexicon:
             if source == 'ru' and key in ('софт', 'софта', 'софту', 'софтом', 'софте'):
                 if self._literal_software(text, match.start(), match.end()):
                     translated = '软件'
-            elif source == 'ru' and key in ('нет софта', 'без софта'):
+            elif source == 'ru' and key in ('нет софта', 'софта нет', 'без софта'):
                 if self._literal_software(text, match.start(), match.end()):
                     translated = '没有软件'
             chunks.append((translated, True))

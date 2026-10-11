@@ -117,6 +117,17 @@ class ChatLexiconTests(unittest.TestCase):
                 self.assertIn(('没有软件', True), chunks)
                 self.assertNotIn(('没开挂', True), chunks)
 
+    def test_reversed_software_negation_keeps_explicit_literal_context(self):
+        for text in ('софта нет для работы', 'у меня софта нет для работы',
+                     'софта нет для монтажа видео', 'софта нет для учёбы'):
+            with self.subTest(text=text):
+                self.assertIsNone(self.lexicon.exact(text, 'ru'))
+                chunks = self.lexicon.split(text, 'ru')
+                self.assertIn(('没有软件', True), chunks)
+                self.assertNotIn(('没开挂', True), chunks)
+        self.assertEqual(self.lexicon.exact('софта нет', 'ru'), '没开挂')
+        self.assertIn(('没开挂', True), self.lexicon.split('ребята, софта нет', 'ru'))
+
     def test_directional_entries_do_not_overwrite_reverse_translations(self):
         for text, expected in [('傻逼', 'долбоёб'), ('混蛋', 'мудак'), ('他妈的', 'блять'),
                                ('帕吉', 'пудж'), ('谢谢', 'спс')]:
@@ -142,6 +153,14 @@ class ChatLexiconTests(unittest.TestCase):
                                ('поставь вард у рошана', '在肉山附近插眼')]:
             with self.subTest(text=text):
                 self.assertEqual(self.lexicon.exact(text, 'ru'), expected)
+
+    def test_outgoing_game_instructions_use_colloquial_russian(self):
+        for text, expected in [('请跟我一起守住高地', 'дефайте хг со мной'),
+                               ('等我把装备出完再打', 'дайте мне дофармить, потом дерёмся'),
+                               ('对面只有一个人能买活', 'у них байбек только у одного'),
+                               ('我刚才按错技能了', 'я мискликнул скилл')]:
+            with self.subTest(text=text):
+                self.assertEqual(self.lexicon.exact(text, 'zh'), expected)
 
 
 if __name__ == '__main__':

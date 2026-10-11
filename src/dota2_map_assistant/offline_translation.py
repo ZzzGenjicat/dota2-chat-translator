@@ -21,7 +21,7 @@ APP_ROOT = resource_root()
 DEFAULT_MODEL_PATH = APP_ROOT / 'models' / 'm2m100-418m-ct2-int8'
 MODEL_FILES = ('model.bin', 'config.json', 'shared_vocabulary.txt', 'spm.128k.model')
 LANGUAGES = {'rus': 'ru', 'zho': 'zh', 'eng': 'en', 'ru': 'ru', 'zh': 'zh', 'en': 'en'}
-PIPELINE_VERSION = 'm2m100-int8-chat-v2-beam1-max128'
+PIPELINE_VERSION = 'm2m100-int8-chat-v3-context-lexicon-beam1-max128'
 _INFERENCE_LOCK = threading.Lock()
 
 

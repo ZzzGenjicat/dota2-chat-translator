@@ -163,6 +163,24 @@ class OfflineTranslationTests(unittest.TestCase):
             path.write_text(json.dumps(data), encoding='utf-8')
             self.assertNotEqual(first, cache_path(Path(tmp), ChatLexicon(path)))
 
+    def test_upgrade_does_not_reuse_previous_bad_translation_cache(self):
+        from dota2_map_assistant import offline_translation as offline
+        from dota2_map_assistant.chat_lexicon import ChatLexicon
+        from dota2_map_assistant.text_recognition import observation_key
+        from dota2_map_assistant.translator_models import TranslationEntry
+        with tempfile.TemporaryDirectory() as tmp, patch.object(offline, 'user_data_dir', return_value=Path(tmp) / 'user-data'):
+            lexicon = ChatLexicon()
+            key = 'ru>zh:' + observation_key('У ТИМБЕРА СОФТ', 'rus')
+            with patch.object(offline, 'PIPELINE_VERSION', 'm2m100-int8-chat-v2-beam1-max128'):
+                old_cache = offline.make_translation_cache(Path(tmp) / 'model', lexicon)
+                old_cache.put(TranslationEntry(key, 'У ТИМБЕРА СОФТ', 'rus', '带姆伯拉的软件', 'translated', 1))
+                self.assertIsNotNone(old_cache.get(key))
+            current_cache = offline.make_translation_cache(Path(tmp) / 'model', lexicon)
+            self.assertIsNone(current_cache.get(key))
+            provider = offline.OfflineTranslationProvider(SimpleNamespace(), current_cache, 'zh', lexicon)
+            self.assertEqual(provider.translate('У ТИМБЕРА СОФТ', 'rus'), '伐木机开挂了')
+            self.assertEqual(old_cache.get(key).translated_text, '带姆伯拉的软件')
+
     def test_neutral_chinese_words_do_not_gain_swears_or_game_terms(self):
         from dota2_map_assistant.chat_lexicon import ChatLexicon
         lexicon = ChatLexicon()
