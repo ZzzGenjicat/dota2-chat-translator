@@ -53,6 +53,75 @@ def offline_network_guard():
         socket.create_connection = create_connection
 
 
+class _CacheOnlyFallback:
+    def _fail(self, *args, **kwargs):
+        raise AssertionError('Persistent cache miss: recomputation is disabled')
+
+    exact = split = validate_text = translate_segments = _fail
+
+
+def check_chat_quality(engine, lexicon, cache) -> dict:
+    from .offline_translation import OfflineTranslationProvider
+    from .sqlite_cache import SQLiteTranslationCache
+    from .text_recognition import observation_key
+
+    provider = OfflineTranslationProvider(engine, cache, 'ru', lexicon)
+    incoming = OfflineTranslationProvider(engine, cache, 'zh', lexicon)
+    quality_cases = [
+        ('rus', 'У ТИМБЕРА СОФТ', '伐木机开挂了'),
+        ('rus', 'чЕРТ', '该死'),
+        ('rus', 'софт', '外挂'),
+        ('rus', 'выблядки с читами', '开挂的杂种'),
+        ('rus', 'соси', '含屌去'),
+        ('rus', 'на аксе', '玩斧王的'),
+        ('rus', 'у лины софт', '莉娜开挂了'),
+        ('rus', 'у акса нет читов', '斧王没开挂'),
+        ('rus', 'он не читер', '他没开挂'),
+        ('rus', 'мы все накинем', '我们都会加上（具体所指不明）'),
+        ('rus', 'потипай', 'потипай（含义不明）'),
+        ('zho', '请跟我一起守住高地', 'дефайте хг со мной'),
+        ('zho', '等我把装备出完再打', 'дайте мне дофармить, потом дерёмся'),
+        ('zho', '对面只有一个人能买活', 'у них байбек только у одного'),
+        ('zho', '我刚才按错技能了', 'я мискликнул скилл'),
+    ]
+    quality_results = []
+    for language, text, expected in quality_cases:
+        translator = incoming if language == 'rus' else provider
+        actual = translator.translate(text, language)
+        if actual != expected:
+            raise AssertionError(f'Bundled chat translation regression: {text!r} -> {actual!r}, expected {expected!r}')
+        quality_results.append({'source': text, 'translation': actual})
+    # A fresh instance cannot satisfy reads from the original memory dictionary.
+    reopened = SQLiteTranslationCache(cache.path)
+    provider_cache = SQLiteTranslationCache(cache.path)
+    forbidden = _CacheOnlyFallback()
+    cached_providers = {
+        'rus': OfflineTranslationProvider(forbidden, provider_cache, 'zh', forbidden),
+        'zho': OfflineTranslationProvider(forbidden, provider_cache, 'ru', forbidden),
+    }
+    direction_hits = {'ru>zh': 0, 'zh>ru': 0}
+    for language, text, expected in quality_cases:
+        source, target = ('ru', 'zh') if language == 'rus' else ('zh', 'ru')
+        direction = f'{source}>{target}'
+        key = direction + ':' + observation_key(text, language)
+        try:
+            stored = reopened.get(key)
+        except OSError as exc:
+            raise AssertionError(f'Persistent cache read failed: {key}') from exc
+        if (stored is None or stored.key != key or stored.source_text != text
+                or stored.language != language or stored.translated_text != expected):
+            raise AssertionError(f'Persistent cache entry missing or incorrect: {key}')
+        # This provider cache is also fresh: stored-entry assertions cannot
+        # populate its memory. Both lexicon and model fallback fail immediately.
+        if cached_providers[language].translate(text, language) != expected:
+            raise AssertionError(f'Persistent cache translation regression: {key}')
+        direction_hits[direction] += 1
+    return {'chat_quality': quality_results, 'persistent_cache': {
+        'reopened': True, 'recomputation_disabled': True,
+        'hits': sum(direction_hits.values()), 'direction_hits': direction_hits,
+    }}
+
+
 def run_checks() -> dict:
     import tkinter as tk
     from .app_paths import resource_root
@@ -98,32 +167,7 @@ def run_checks() -> dict:
                 if 'долбо' not in insult.lower():
                     raise AssertionError('Bundled profanity lexicon lost original strength')
                 result['checks']['lexicon'] = True
-                incoming = OfflineTranslationProvider(engine, provider.cache, 'zh', lexicon)
-                quality_cases = [
-                    ('rus', 'У ТИМБЕРА СОФТ', '伐木机开挂了'),
-                    ('rus', 'чЕРТ', '该死'),
-                    ('rus', 'софт', '外挂'),
-                    ('rus', 'выблядки с читами', '开挂的杂种'),
-                    ('rus', 'соси', '含屌去'),
-                    ('rus', 'на аксе', '玩斧王的'),
-                    ('rus', 'у лины софт', '莉娜开挂了'),
-                    ('rus', 'у акса нет читов', '斧王没开挂'),
-                    ('rus', 'он не читер', '他没开挂'),
-                    ('rus', 'мы все накинем', '我们都会加上（具体所指不明）'),
-                    ('rus', 'потипай', 'потипай（含义不明）'),
-                    ('zho', '请跟我一起守住高地', 'дефайте хг со мной'),
-                    ('zho', '等我把装备出完再打', 'дайте мне дофармить, потом дерёмся'),
-                    ('zho', '对面只有一个人能买活', 'у них байбек только у одного'),
-                    ('zho', '我刚才按错技能了', 'я мискликнул скилл'),
-                ]
-                quality_results = []
-                for language, text, expected in quality_cases:
-                    translator = incoming if language == 'rus' else provider
-                    actual = translator.translate(text, language)
-                    if actual != expected or translator.translate(text, language) != expected:
-                        raise AssertionError(f'Bundled chat translation regression: {text!r} -> {actual!r}, expected {expected!r}')
-                    quality_results.append({'source': text, 'translation': actual})
-                result['checks']['chat_quality'] = quality_results
+                result['checks'].update(check_chat_quality(engine, lexicon, provider.cache))
                 if find_dota_dir() != dota.resolve():
                     raise AssertionError('Steam discovery failed in Unicode library')
                 install_gsi_config(dota)
