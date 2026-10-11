@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "notes": "双向聊天词库。strength: 0=中性，1=轻度辱骂，2=粗话，3=强烈辱骂。译文不得增加或删除攻击；aliases 必须保持相同含义和强度。修改后在界面重新应用本地设置。俄语屈折变体显式列在 ru_aliases，避免正则误伤。",
+  "notes": "聊天词库，默认双向；directions:[ru] 表示仅俄语译入，避免同义中文覆盖反向词条。whole_message_only:true 限定整条消息，避免把普通句子中的多义词变成辱骂。strength: 0=中性，1=轻度辱骂，2=粗话，3=强烈辱骂。译文不得增加或删除攻击；aliases 必须保持相同含义和强度。修改后在界面重新应用本地设置。俄语屈折变体显式列在 ru_aliases，避免正则误伤。софт 在 Dota 指外挂，但明确工作、安装、版本等上下文按普通软件处理。没有明确对象的 накинем 和含义不明的 потипай 保留歧义。",
   "phrases": [
     {"zh":"你是傻逼","ru":"ты долбоёб","zh_aliases":["你个傻逼","你就是个傻逼"],"strength":3},
     {"zh":"你是白痴","ru":"ты идиот","zh_aliases":["你个白痴"],"strength":1},
@@ -52,7 +52,19 @@
     {"zh":"队友还没有准备好","ru":"тиммейты ещё не готовы","zh_aliases":["队友还没准备好"],"strength":0},
     {"zh":"买","ru":"купи","ru_aliases":["купите"],"strength":0},
     {"zh":"开烟","ru":"го смок","zh_aliases":["开雾"],"strength":0},
-    {"zh":"先开BKB然后打肉山","ru":"сначала жми бкб, потом го рошу","strength":0}
+    {"zh":"先开BKB然后打肉山","ru":"сначала жми бкб, потом го рошу","strength":0},
+    {"zh":"该死","ru":"чёрт","ru_aliases":["черт","чёрт побери","черт побери"],"directions":["ru"],"whole_message_only":true,"strength":1},
+    {"zh":"含屌去","ru":"соси","ru_aliases":["сосите","соси хуй","сосите хуй"],"directions":["ru"],"whole_message_only":true,"strength":3},
+    {"zh":"开挂的杂种","ru":"выблядки с читами","ru_aliases":["выблядок с читами"],"directions":["ru"],"strength":3},
+    {"zh":"我们都会加上（具体所指不明）","ru":"мы все накинем","directions":["ru"],"whole_message_only":true,"strength":0},
+    {"zh":"потипай（含义不明）","ru":"потипай","directions":["ru"],"whole_message_only":true,"strength":0},
+    {"zh":"没开挂","ru":"нет читов","ru_aliases":["читов нет","нету читов","без читов","без софта","нет софта","софта нет","не читер","не софтер","не использую читы"],"directions":["ru"],"strength":0},
+    {"zh":"开挂的","ru":"с читами","ru_aliases":["на софте"],"directions":["ru"],"strength":0},
+    {"zh":"去中路","ru":"го мид","directions":["ru"],"strength":0},
+    {"zh":"去上路","ru":"го топ","directions":["ru"],"strength":0},
+    {"zh":"去下路","ru":"го бот","directions":["ru"],"strength":0},
+    {"zh":"谢谢这局比赛","ru":"спасибо за игру","ru_aliases":["спс за игру"],"directions":["ru"],"strength":0},
+    {"zh":"在肉山附近插眼","ru":"поставь вард у рошана","directions":["ru"],"strength":0}
   ],
   "terms": [
     {"zh":"傻逼","ru":"долбоёб","kind":"profanity","strength":3,"zh_aliases":["傻B","傻b","煞笔","傻比"],"ru_aliases":["долбоеб","долбаёб","долбаеб","долбоёбы","долбоебы","долбоёба","долбоеба"]},
@@ -120,6 +132,20 @@
     {"zh":"编织者","ru":"вивер","zh_aliases":["蚂蚁"],"kind":"hero","strength":0,"ru_aliases":["вивера","Weaver"]},
     {"zh":"斯温","ru":"свен","kind":"hero","strength":0,"ru_aliases":["свена","Sven"]},
     {"zh":"卓尔游侠","ru":"тракса","zh_aliases":["小黑"],"kind":"hero","strength":0,"ru_aliases":["траксу","Drow Ranger"]},
-    {"zh":"狙击手","ru":"снайпер","zh_aliases":["火枪"],"kind":"hero","strength":0,"ru_aliases":["снайпера","Sniper"]}
+    {"zh":"狙击手","ru":"снайпер","zh_aliases":["火枪"],"kind":"hero","strength":0,"ru_aliases":["снайпера","Sniper"]},
+    {"zh":"伐木机","ru":"тимбер","zh_aliases":["Timbersaw"],"kind":"hero","strength":0,"ru_aliases":["тимбера","тимберу","тимбером","тимбере","тимберсоу","Timbersaw"]},
+    {"zh":"斧王","ru":"акс","zh_aliases":["Axe"],"kind":"hero","strength":0,"ru_aliases":["акса","аксу","аксом","аксе","Axe"]},
+    {"zh":"修补匠","ru":"тинкер","zh_aliases":["Tinker"],"kind":"hero","strength":0,"ru_aliases":["тинкера","тинкеру","тинкером","тинкере","Tinker"]},
+    {"zh":"祈求者","ru":"инвокер","zh_aliases":["卡尔","Invoker"],"kind":"hero","strength":0,"ru_aliases":["инвокера","инвокеру","инвокером","инвокере","Invoker"]},
+    {"zh":"莱恩","ru":"лион","zh_aliases":["Lion"],"kind":"hero","strength":0,"ru_aliases":["лиона","лиону","лионом","лионе","Lion"]},
+    {"zh":"拉比克","ru":"рубик","zh_aliases":["Rubick"],"kind":"hero","strength":0,"ru_aliases":["рубика","рубику","рубиком","рубике","Rubick"]},
+    {"zh":"莉娜","ru":"лины","kind":"hero","strength":0,"ru_aliases":["лине","линой"],"directions":["ru"]},
+    {"zh":"外挂","ru":"софт","ru_aliases":["софта","софту","софтом","софте"],"kind":"game","strength":0,"directions":["ru"]},
+    {"zh":"外挂","ru":"чит","ru_aliases":["читы","чита","читов","читами"],"kind":"game","strength":0,"directions":["ru"]},
+    {"zh":"开挂者","ru":"читер","ru_aliases":["читеры","читера","читеров","читерами","софтер","софтеры","софтера"],"kind":"game","strength":0,"directions":["ru"]},
+    {"zh":"杂种","ru":"выблядок","ru_aliases":["выблядки","выблядка","выблядков","ублюдок","ублюдки","ублюдка","ублюдков"],"kind":"profanity","strength":3,"directions":["ru"]},
+    {"zh":"举报","ru":"репорт","ru_aliases":["репорты","репортить","репортните"],"kind":"game","strength":0,"directions":["ru"]},
+    {"zh":"老鼠","ru":"крыса","ru_aliases":["крысы","крысу"],"kind":"colloquial","strength":0,"directions":["ru"]},
+    {"zh":"故意搞砸比赛的人","ru":"руинер","ru_aliases":["руинеры","руинера"],"kind":"game","strength":0,"directions":["ru"]}
   ]
 }
