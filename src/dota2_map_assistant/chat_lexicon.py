@@ -149,6 +149,9 @@ class ChatLexicon:
             elif source == 'ru' and key in ('нет софта', 'софта нет', 'без софта'):
                 if self._literal_software(text, match.start(), match.end()):
                     translated = '没有软件'
+            elif source == 'ru' and key == 'на софте':
+                if self._literal_software(text, match.start(), match.end()):
+                    translated = '用软件'
             chunks.append((translated, True))
             start = match.end()
         if start < len(text):

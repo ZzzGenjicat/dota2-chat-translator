@@ -128,6 +128,19 @@ class ChatLexiconTests(unittest.TestCase):
         self.assertEqual(self.lexicon.exact('софта нет', 'ru'), '没开挂')
         self.assertIn(('没开挂', True), self.lexicon.split('ребята, софта нет', 'ru'))
 
+    def test_using_software_phrase_keeps_explicit_work_and_editing_context(self):
+        for text in ('я работаю на софте для монтажа видео', 'на софте для работы',
+                     'на софте для видео', 'на софте для учёбы'):
+            with self.subTest(text=text):
+                self.assertIsNone(self.lexicon.exact(text, 'ru'))
+                chunks = self.lexicon.split(text, 'ru')
+                self.assertIn(('用软件', True), chunks)
+                self.assertNotIn(('开挂的', True), chunks)
+                self.assertNotIn(('外挂', True), chunks)
+        self.assertEqual(self.lexicon.exact('на софте', 'ru'), '开挂的')
+        self.assertIn(('开挂的', True), self.lexicon.split('он на софте', 'ru'))
+        self.assertEqual(self.lexicon.exact('пудж на софте', 'ru'), '帕吉开挂了')
+
     def test_directional_entries_do_not_overwrite_reverse_translations(self):
         for text, expected in [('傻逼', 'долбоёб'), ('混蛋', 'мудак'), ('他妈的', 'блять'),
                                ('帕吉', 'пудж'), ('谢谢', 'спс')]:
