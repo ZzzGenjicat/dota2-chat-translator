@@ -19,10 +19,10 @@ FILES = {
 # smaller model tests the same Hy-MT architecture, prompt and decoder path;
 # it is a packaging fixture, never an automatic translation fallback.
 NATIVE_FIXTURE = {
-    'folder': 'hy-mt2-7b-q4', 'repository': 'tencent/Hy-MT2-7B-GGUF',
-    'revision': 'ab8472660ac61fac25f1af43fac2599d52a8a775',
-    'files': {'Hy-MT2-7B-Q4_K_M.gguf':
-              (4624648896, '9f96256500f3fc1ab4d64336b58f52a949a95ad7516b0c229476eef782f9f77b')},
+    'folder': 'hy-mt2-1.8b-q4', 'repository': 'tencent/Hy-MT2-1.8B-GGUF',
+    'revision': 'a0c709d9fac510f2c807aa3af52872340dc37a4a',
+    'files': {'Hy-MT2-1.8B-Q4_K_M.gguf':
+              (1133080448, 'dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699')},
 }
 
 
