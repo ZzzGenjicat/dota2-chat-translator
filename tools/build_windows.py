@@ -135,7 +135,7 @@ def build() -> None:
                     str(ROOT / 'packaging' / 'windows.spec')], cwd=ROOT, check=True)
     app_dir = ROOT / 'dist' / 'Dota2ChatTranslator'
     internal = app_dir / '_internal'
-    for name in ('python312.dll', 'vcruntime140.dll'):
+    for name in ('python312.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll'):
         if not any(path.name.lower() == name for path in internal.rglob('*.dll')):
             raise RuntimeError(f'App-local runtime dependency is missing: {name}')
     if any(path.name.lower().startswith(('cudnn', 'cublas', 'cudart')) for path in internal.rglob('*.dll')):

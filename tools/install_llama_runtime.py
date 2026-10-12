@@ -51,6 +51,9 @@ def install(destination: Path, verify_only=False):
     print(f'Verified CPU runtime: {TAG} {sys.platform}/{arch}',flush=True)
 
 if __name__=='__main__':
+    for stream in (sys.stdout,sys.stderr):
+        if hasattr(stream,'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--verify-only',action='store_true')
     args=p.parse_args()

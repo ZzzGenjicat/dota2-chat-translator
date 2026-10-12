@@ -344,4 +344,12 @@ class LocalLLMTests(unittest.TestCase):
         self.assertTrue(any('мой косяк' in hint for hint in lex.hints('这波我的，刚才按错技能了','zh')))
         self.assertFalse(any('мой косяк' in hint for hint in lex.hints('这波我的，你去吃另一波兵','zh')))
 
+    def test_reference_translations_do_not_include_copied_prompt_instructions(self):
+        from dota2_map_assistant.chat_lexicon import ChatLexicon
+        lex=ChatLexicon()
+        self.assertIn('все афк = 所有人都在挂机',lex.hints('все афк','ru'))
+        self.assertIn('ты афк = 你在挂机?',lex.hints('ты афк?','ru'))
+        self.assertIn('софт = 外挂',lex.hints('софт','ru',('У Тимбера читы.',)))
+        self.assertIn('софт = 软件',lex.hints('софт','ru',('Это программа для монтажа видео.',)))
+
 if __name__=='__main__': unittest.main()

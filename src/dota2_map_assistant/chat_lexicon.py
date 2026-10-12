@@ -75,11 +75,11 @@ class ChatLexicon:
     def _key(text: str) -> str:
         return re.sub(r'\s+', ' ', text.strip()).casefold().rstrip('。.!！?？')
 
-    def hints(self, text: str, source: str) -> list[str]:
+    def hints(self, text: str, source: str, history: tuple[str, ...] = ()) -> list[str]:
         """Relevant term hints; never substitute/split grammar-bearing phrases."""
         hints = []
         if source == 'zh' and re.search(r'这(?:波|把)我的', text) and re.search(r'按错|失误|错了|打错', text):
-            hints.append('这波我的/这把我的 = мой косяк（在承认失误的语境是我的锅，不是抢兵线）')
+            hints.append('这波我的/这把我的 = мой косяк')
         for term, meaning in sorted(self._terms[source].items(), key=lambda item: -len(item[0])):
             if len(term) < 2:
                 continue
@@ -89,7 +89,10 @@ class ChatLexicon:
             if not re.search(pattern, text, re.IGNORECASE):
                 continue
             if source == 'ru' and term.startswith('софт'):
-                meaning = '软件；Dota 作弊语境中指外挂，工作软件语境不指外挂'
+                literal = any(self._literal_software(text, match.start(), match.end())
+                              for match in re.finditer(pattern, text, re.I))
+                work_context = re.search(r'(?<!\w)(?:программ[а-яё]*|монтаж[а-яё]*|работ[а-яё]*)(?!\w)', '\n'.join(history), re.I)
+                meaning = '软件' if literal or work_context else '外挂'
             hint = f'{term} = {meaning}'
             if hint not in hints:
                 hints.append(hint)
@@ -100,10 +103,11 @@ class ChatLexicon:
             for match in re.finditer(r'(?<!\w)(' + '|'.join(subjects) + r')\s+(?:афк|afk)(?!\w)', text, re.I):
                 subject = match[1].casefold()
                 plural = '都' if subject in ('все', 'мы', 'вы', 'они') else ''
-                hints.insert(0, f'{match.group()} = {subjects[subject]}{plural}在挂机（状态；按原文保留问号）')
+                question = '?' if re.match(r'\s*[?？]', text[match.end():]) else ''
+                hints.insert(0, f'{match.group()} = {subjects[subject]}{plural}在挂机{question}')
             for alias, hero in self._heroes.items():
                 if re.search(rf'(?<!\w)на\s+{re.escape(alias)}(?!\w)', text, re.I):
-                    hints.insert(0, f'на {alias} = 玩{hero}，指使用该英雄的玩家')
+                    hints.insert(0, f'на {alias} = 玩{hero}的')
                     break
         return hints[:12]
 
