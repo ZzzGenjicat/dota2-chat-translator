@@ -63,10 +63,10 @@ def resolve_model_path(path: str) -> Path:
     # The old bundled CT2 default cannot be used as a GGUF model. Upgrade it,
     # including relocated installations, without resetting unrelated preferences.
     old = PureWindowsPath(path)
-    if not path.strip() or (old.name == 'm2m100-418m-ct2-int8' and old.parent.name == 'models') or (
-            not old.is_absolute() and old.name == MODEL_FOLDER and old.parent.name == 'models'):
-        return default_model_path()
     value = Path(path).expanduser()
+    if not path.strip() or (old.name == 'm2m100-418m-ct2-int8' and old.parent.name == 'models') or (
+            not old.is_absolute() and not value.is_absolute() and old.name == MODEL_FOLDER and old.parent.name == 'models'):
+        return default_model_path()
     return value if value.is_absolute() else resource_root() / value
 
 
@@ -158,6 +158,14 @@ class LocalLLMEngine:
     @property
     def status(self) -> str:
         return self._status
+
+    @property
+    def display_name(self) -> str:
+        name = self.model_file.stem
+        hymt = re.match(r'Hy-MT2-([^-]+)', name)
+        if hymt:
+            return 'Hy-MT2 ' + hymt[1]
+        return name[:28]
 
     @property
     def model_file(self) -> Path:

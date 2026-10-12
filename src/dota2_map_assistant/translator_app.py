@@ -57,7 +57,7 @@ class TranslatorApp:
         self.opacity_var = tk.DoubleVar(value=self.settings.opacity)
         self.font_size_var = tk.IntVar(value=self.settings.font_size)
         self.status_var = tk.StringVar(value="已暂停；点击开始抓取游戏聊天")
-        self.translation_status_var = tk.StringVar(value='本地离线 · ' + self.controller.engine.model_file.stem)
+        self.translation_status_var = tk.StringVar(value='本地离线 · ' + self.controller.engine.display_name)
         self.model_status_var = tk.StringVar(value=self.controller.engine.status)
         self.gsi_status_var = tk.StringVar(value="正在检查游戏直读配置…")
         self._rendered_rows: tuple = ()
@@ -351,7 +351,7 @@ class TranslatorApp:
             return
         self.settings = self.controller.settings
         self.model_path_var.set(self.settings.offline_model_path)
-        self.translation_status_var.set('本地离线 · ' + self.controller.engine.model_file.stem)
+        self.translation_status_var.set('本地离线 · ' + self.controller.engine.display_name)
         self.outgoing_translator.provider = self.controller.outgoing_provider
         self._save_settings()
         self._schedule_outgoing_translation()

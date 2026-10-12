@@ -78,6 +78,8 @@ class ChatLexicon:
     def hints(self, text: str, source: str) -> list[str]:
         """Relevant term hints; never substitute/split grammar-bearing phrases."""
         hints = []
+        if source == 'zh' and re.search(r'这(?:波|把)我的', text) and re.search(r'按错|失误|错了|打错', text):
+            hints.append('这波我的/这把我的 = мой косяк（在承认失误的语境是我的锅，不是抢兵线）')
         for term, meaning in sorted(self._terms[source].items(), key=lambda item: -len(item[0])):
             if len(term) < 2:
                 continue

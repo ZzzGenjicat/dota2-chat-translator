@@ -155,6 +155,14 @@ class LocalLLMTests(unittest.TestCase):
             model=Path(tmp)/'models'/m.MODEL_FOLDER
             self.assertEqual(m.resolve_model_path(str(model)),model)
 
+    def test_posix_absolute_model_folder_is_preserved(self):
+        from pathlib import PurePosixPath
+        class PosixFixturePath(PurePosixPath):
+            def expanduser(self): return self
+        m=self.module(); model=PurePosixPath('/tmp/cache/models')/m.MODEL_FOLDER
+        with patch.object(m,'Path',PosixFixturePath),patch.object(m,'default_model_path',side_effect=AssertionError('must preserve explicit path')):
+            self.assertEqual(m.resolve_model_path(str(model)),model)
+
     def test_clear_output_invalidates_queued_work(self):
         from dota2_map_assistant.translator_controller import TranslatorController
         from dota2_map_assistant.translator_settings import TranslatorSettings
@@ -329,5 +337,11 @@ class LocalLLMTests(unittest.TestCase):
         self.assertNotIn('陈述状态',prompt)
         self.assertNotIn('主语加状态是陈述',prompt)
         self.assertIn('问句按原文保留',prompt)
+
+    def test_own_mistake_hint_does_not_apply_to_claiming_a_creep_wave(self):
+        from dota2_map_assistant.chat_lexicon import ChatLexicon
+        lex=ChatLexicon()
+        self.assertTrue(any('мой косяк' in hint for hint in lex.hints('这波我的，刚才按错技能了','zh')))
+        self.assertFalse(any('мой косяк' in hint for hint in lex.hints('这波我的，你去吃另一波兵','zh')))
 
 if __name__=='__main__': unittest.main()
