@@ -98,7 +98,7 @@ class ChatLexicon:
             for match in re.finditer(r'(?<!\w)(' + '|'.join(subjects) + r')\s+(?:афк|afk)(?!\w)', text, re.I):
                 subject = match[1].casefold()
                 plural = '都' if subject in ('все', 'мы', 'вы', 'они') else ''
-                hints.insert(0, f'{match.group()} = {subjects[subject]}{plural}在挂机（陈述状态）')
+                hints.insert(0, f'{match.group()} = {subjects[subject]}{plural}在挂机（状态；按原文保留问号）')
             for alias, hero in self._heroes.items():
                 if re.search(rf'(?<!\w)на\s+{re.escape(alias)}(?!\w)', text, re.I):
                     hints.insert(0, f'на {alias} = 玩{hero}，指使用该英雄的玩家')

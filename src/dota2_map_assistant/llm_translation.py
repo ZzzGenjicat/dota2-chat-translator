@@ -125,7 +125,7 @@ def build_hymt_messages(text: str, source: str, target: str, lexicon: ChatLexico
                   for original, word in zip(lexicon.profanity_hints(text, source), translated)]
     parts.append('这是 Dota 2 玩家聊天。保留原意、否定、数字、问句或命令及原始攻击强度。'
                  '不要把状态描述变成命令，不增加原文没有的对象或辱骂。'
-                 '俄语省略系动词的主语加状态是陈述；AFK 是挂机状态，不是命令。'
+                 'AFK 表示挂机状态；陈述或问句按原文保留，不要改成挂机命令。'
                  '俄语译文用玩家的简短口语和游戏黑话。')
     if replacements:
         parts.append('粗话严格按上面的对应词翻译，保留原词语在句中的作用，不附加到句末，不另加或重复粗话。')
@@ -268,7 +268,8 @@ class LocalLLMEngine:
                 output = self._complete(messages, replacements, canonical=canonical)
                 if canonical and replacements:
                     expected = Counter(replacements.values())
-                    pattern = '|'.join(re.escape(word) for word in sorted(expected, key=len, reverse=True))
+                    vocabulary = set(glossary._profanity[source].values()) | set(expected)
+                    pattern = '|'.join(re.escape(word) for word in sorted(vocabulary, key=len, reverse=True))
                     if Counter(re.findall(pattern, output)) != expected:
                         raise ValueError('模型遗漏或重复了原文粗话，请重试')
                     return output.strip()

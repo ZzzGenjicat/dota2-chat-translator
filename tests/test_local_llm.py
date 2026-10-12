@@ -314,4 +314,20 @@ class LocalLLMTests(unittest.TestCase):
                 e.translate_message('ты долбоёб, а не саппорт','ru','zh')
         e.close()
 
+    def test_expected_swear_cannot_be_hidden_inside_an_added_command(self):
+        m=self.module(); e=m.LocalLLMEngine()
+        with patch.object(e,'_load'),patch.object(e,'_complete',return_value='去他妈的，守高地。'):
+            with self.assertRaisesRegex(ValueError,'粗话'):
+                e.translate_message('блять, дефайте хг','ru','zh')
+        e.close()
+
+    def test_afk_question_keeps_its_speech_act(self):
+        from dota2_map_assistant.chat_lexicon import ChatLexicon
+        m=self.module(); lex=ChatLexicon()
+        prompt=m.build_hymt_messages('ты афк?','ru','zh',lex,(),{})[0]['content']
+        self.assertIn('ты афк?',prompt)
+        self.assertNotIn('陈述状态',prompt)
+        self.assertNotIn('主语加状态是陈述',prompt)
+        self.assertIn('问句按原文保留',prompt)
+
 if __name__=='__main__': unittest.main()
