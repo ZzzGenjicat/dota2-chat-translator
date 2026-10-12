@@ -65,4 +65,14 @@ class ModelInstallTests(unittest.TestCase):
         self.assertTrue(context.check_hostname)
         self.assertGreater(context.cert_store_stats()['x509_ca'],0)
 
+    def test_same_size_rewrite_with_coarse_unchanged_timestamp_is_detected(self):
+        import os
+        data,files=self.fixture()
+        with tempfile.TemporaryDirectory() as tmp,patch.object(m,'FILES',files):
+            p=Path(tmp); model=p/'test.gguf'; model.write_bytes(data)
+            m.install(p,verify_only=True)
+            stat=model.stat(); model.write_bytes(b'x'*len(data))
+            os.utime(model,ns=(stat.st_atime_ns,stat.st_mtime_ns))
+            self.assertFalse(m.is_installed(p))
+
 if __name__=='__main__': unittest.main()

@@ -31,6 +31,22 @@ def checksum(path: Path) -> str:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def sample_fingerprint(path: Path) -> str:
+    """Cheap modification check when Windows preserves a coarse write time.
+
+    Full SHA256 is still verified at installation. Startup reads at most
+    192 KiB instead of hashing the entire 17 GiB model every time.
+    """
+    size = path.stat().st_size
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        for offset in sorted({0, max(0, size // 2 - 32768), max(0, size - 65536)}):
+            stream.seek(offset)
+            digest.update(offset.to_bytes(8, 'little'))
+            digest.update(stream.read(65536))
+    return digest.hexdigest()
+
+
 def is_installed(destination: Path) -> bool:
     try:
         manifest_path = destination / 'manifest.json'
@@ -43,7 +59,8 @@ def is_installed(destination: Path) -> bool:
             stat = (destination / name).stat()
             record = receipt['files'][name]
             if not (stat.st_size == record['size'] == size and record['sha256'] == digest
-                    and stat.st_mtime_ns == record['mtime_ns']):
+                    and stat.st_mtime_ns == record['mtime_ns']
+                    and record.get('sample_sha256') == sample_fingerprint(destination / name)):
                 return False
         return True
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
@@ -113,7 +130,8 @@ def install(destination: Path, verify_only=False, *, progress=lambda message: No
                               progress=lambda message: progress(f'[{index}/{len(files)}] {message}'), cancel=cancel)
     manifest = {'repository': repository,
                 'revision': revision, 'quantization': 'Q4_K_M', 'files': {
-                    name: {'size': size, 'sha256': digest, 'mtime_ns': (destination / name).stat().st_mtime_ns}
+                    name: {'size': size, 'sha256': digest, 'mtime_ns': (destination / name).stat().st_mtime_ns,
+                           'sample_sha256': sample_fingerprint(destination / name)}
                     for name, (size, digest) in files.items()}}
     temporary = destination / 'manifest.json.tmp'
     temporary.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
