@@ -290,9 +290,6 @@ class TranslationTests(unittest.TestCase):
                 provider, TranslationCache(Path(tmp) / "cache.json"), "Full",
                 start_worker=False, clock=lambda: now[0], sleeper=lambda seconds: now.__setitem__(0, now[0] + seconds),
             )
-            queue.submit(TextObservation("older chat", "eng", 0.9, 1.0))
-            queue.submit(TextObservation("newer chat", "eng", 0.9, 2.0))
-
             class StopAfterTwo:
                 def translate(self, text, language):
                     result = provider.translate(text, language)
@@ -301,6 +298,8 @@ class TranslationTests(unittest.TestCase):
                     return result
 
             queue.provider = StopAfterTwo()
+            queue.submit(TextObservation("older chat", "eng", 0.9, 1.0))
+            queue.submit(TextObservation("newer chat", "eng", 0.9, 2.0))
             queue._run()
 
             self.assertEqual([text for text, _language in provider.calls], ["older chat", "newer chat"])
@@ -333,8 +332,6 @@ class TranslationTests(unittest.TestCase):
 
         provider = RecordingProvider()
         queue = TranslationQueue(provider, ReadOnlyCache(), "Full", start_worker=False)
-        queue.submit(TextObservation("hello", "eng", 0.9, 1.0))
-
         class Once:
             def translate(self, text, language):
                 result = provider.translate(text, language)
@@ -342,6 +339,7 @@ class TranslationTests(unittest.TestCase):
                 return result
 
         queue.provider = Once()
+        queue.submit(TextObservation("hello", "eng", 0.9, 1.0))
         queue._run()
 
         self.assertEqual(queue.poll_result().translated_text, "翻译:hello")

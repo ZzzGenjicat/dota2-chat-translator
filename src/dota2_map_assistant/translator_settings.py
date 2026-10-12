@@ -2,7 +2,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+
+DEFAULT_OFFLINE_MODEL = 'models/hy-mt2-30b-a3b-q4'
+
+
+def _model_path(value: object) -> str:
+    text = str(value or DEFAULT_OFFLINE_MODEL)
+    old = PureWindowsPath(text)
+    if old.name == 'm2m100-418m-ct2-int8' and old.parent.name == 'models':
+        return DEFAULT_OFFLINE_MODEL
+    return text
 
 @dataclass(frozen=True)
 class TranslatorSettings:
@@ -12,7 +22,7 @@ class TranslatorSettings:
     provider_api_key: str = ""
     provider_model: str = ""
     translation_backend: str = "offline"
-    offline_model_path: str = "models/m2m100-418m-ct2-int8"
+    offline_model_path: str = DEFAULT_OFFLINE_MODEL
     offline_cpu_threads: int = 2
     dota_game_dir: str = ""
     chatgpt_model: str = ""
@@ -43,7 +53,7 @@ def load_settings(path: Path, *, legacy_path: Path | None = None) -> TranslatorS
         provider_api_key="",
         provider_model="",
         translation_backend="offline",
-        offline_model_path=str(data.get("offline_model_path") or "models/m2m100-418m-ct2-int8"),
+        offline_model_path=_model_path(data.get("offline_model_path")),
         offline_cpu_threads=_clamp_int(data.get("offline_cpu_threads"), 2, 1, 4),
         dota_game_dir=str(data.get("dota_game_dir") or ""),
         chatgpt_model=str(data.get("chatgpt_model") or ""),

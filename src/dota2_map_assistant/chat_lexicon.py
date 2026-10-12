@@ -22,12 +22,17 @@ class ChatLexicon:
             self._terms = {'zh': {}, 'ru': {}}
             self._spans = {'zh': {}, 'ru': {}}
             self._heroes: dict[str, str] = {}
+            self._profanity = {'zh': {}, 'ru': {}}
+            self._english_terms = {}
+            self._fixed_swears = {'zh': set(), 'ru': set()}
             for phrase in data['phrases']:
                 for language in self._directions(phrase):
                     other = 'ru' if language == 'zh' else 'zh'
                     for alias in [phrase[language], *phrase.get(language + '_aliases', [])]:
                         key = self._key(alias)
                         self._phrases[language][key] = phrase[other]
+                        if phrase.get('strength', 0) >= 2:
+                            self._fixed_swears[language].add(key)
                         if not phrase.get('whole_message_only', False):
                             self._spans[language][key] = phrase[other]
             for term in data['terms']:
@@ -38,6 +43,12 @@ class ChatLexicon:
                         if key in self._terms[language] and self._terms[language][key] != term[other]:
                             raise ValueError(f'重复词条：{alias}')
                         self._terms[language][key] = term[other]
+                        if language == 'ru' and term.get('en'):
+                            self._english_terms[key] = term['en']
+                        if term.get('kind') == 'profanity':
+                            self._fixed_swears[language].add(key)
+                        if term.get('kind') == 'profanity':
+                            self._profanity[language][key] = term[other]
                         if not term.get('whole_message_only', False):
                             # Phrase meanings take priority over standalone terms.
                             self._spans[language].setdefault(key, term[other])
@@ -63,6 +74,86 @@ class ChatLexicon:
     @staticmethod
     def _key(text: str) -> str:
         return re.sub(r'\s+', ' ', text.strip()).casefold().rstrip('。.!！?？')
+
+    def hints(self, text: str, source: str) -> list[str]:
+        """Relevant term hints; never substitute/split grammar-bearing phrases."""
+        hints = []
+        for term, meaning in sorted(self._terms[source].items(), key=lambda item: -len(item[0])):
+            if len(term) < 2:
+                continue
+            if term in self._profanity[source]:
+                continue  # These are preserved by the constrained decoder.
+            pattern = re.escape(term) if source == 'zh' else rf'(?<!\w){re.escape(term)}(?!\w)'
+            if not re.search(pattern, text, re.IGNORECASE):
+                continue
+            if source == 'ru' and term.startswith('софт'):
+                meaning = '软件；Dota 作弊语境中指外挂，工作软件语境不指外挂'
+            hint = f'{term} = {meaning}'
+            if hint not in hints:
+                hints.append(hint)
+            if len(hints) >= 12:
+                break
+        if source == 'ru':
+            subjects = {'все': '所有人', **self._subjects}
+            for match in re.finditer(r'(?<!\w)(' + '|'.join(subjects) + r')\s+(?:афк|afk)(?!\w)', text, re.I):
+                subject = match[1].casefold()
+                plural = '都' if subject in ('все', 'мы', 'вы', 'они') else ''
+                hints.insert(0, f'{match.group()} = {subjects[subject]}{plural}在挂机（陈述状态）')
+            for alias, hero in self._heroes.items():
+                if re.search(rf'(?<!\w)на\s+{re.escape(alias)}(?!\w)', text, re.I):
+                    hints.insert(0, f'на {alias} = 玩{hero}，指使用该英雄的玩家')
+                    break
+        return hints[:12]
+
+    def protect_profanity(self, text: str, source: str) -> tuple[str, dict[str, str]]:
+        """Keep known offensive words intact while translating the whole grammar."""
+        terms = self._profanity[source]
+        alternatives = []
+        for term in sorted(terms, key=len, reverse=True):
+            escaped = re.escape(term)
+            alternatives.append(escaped if source == 'zh' else rf'(?<!\w){escaped}(?!\w)')
+        pattern = re.compile('|'.join(alternatives) or r'(?!)', re.I)
+        replacements = {}
+        def protect(match):
+            marker = f'[[DOTA_WORD_{len(replacements)}]]'
+            while marker in text:
+                marker = marker.replace('WORD_', 'WORD_X_')
+            meaning = terms[self._key(match.group())]
+            if source == 'ru' and self._key(match.group()) == 'сука' and re.match(r'\s*,', text[match.end():]):
+                meaning = '他妈的'  # An interjection; "ты сука" remains a noun insult.
+            replacements[marker] = meaning
+            return marker
+        return pattern.sub(protect, text), replacements
+
+    def profanity_hints(self, text: str, source: str) -> list[str]:
+        """Original offensive spans, longest first, for a whole-source prompt."""
+        terms = self._profanity[source]
+        alternatives = [re.escape(term) if source == 'zh' else rf'(?<!\w){re.escape(term)}(?!\w)'
+                        for term in sorted(terms, key=len, reverse=True)]
+        return [match.group() for match in re.finditer('|'.join(alternatives) or r'(?!)', text, re.I)]
+
+    def is_fixed_swear(self, text: str, source: str) -> bool:
+        return self._key(text) in self._fixed_swears[source]
+
+    @staticmethod
+    def restore_profanity(output: str, replacements: dict[str, str]) -> str:
+        remaining = {}
+        for meaning in replacements.values():
+            if meaning not in remaining:
+                expected = sum(value == meaning for value in replacements.values())
+                rendered = output.casefold().count(meaning.casefold())
+                if rendered > expected:
+                    raise ValueError('模型额外重复了原文粗话，请重试')
+                remaining[meaning] = rendered
+        for marker, meaning in replacements.items():
+            if output.count(marker) != 1:
+                raise ValueError('模型遗漏或重复了原文粗话，请重试')
+            if remaining[meaning]:
+                output = output.replace(marker, '')
+                remaining[meaning] -= 1
+            else:
+                output = output.replace(marker, meaning)
+        return output
 
     @staticmethod
     def _directions(entry: dict) -> tuple[str, ...] | list[str]:

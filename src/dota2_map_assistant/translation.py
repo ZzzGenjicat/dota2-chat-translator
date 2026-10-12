@@ -339,7 +339,7 @@ class TranslationQueue:
         self._profile_name = "Balanced"
         self.set_profile(profile)
         self._paused = paused
-        self._jobs: queue.Queue[tuple[int, TextObservation] | None] = queue.Queue()
+        self._jobs: queue.Queue[tuple[int, TranslationProvider, int | None, TextObservation] | None] = queue.Queue()
         self._results: queue.Queue[TranslationEntry] = queue.Queue()
         self._seen: set[str] = set()
         self._pending: set[str] = set()
@@ -376,7 +376,7 @@ class TranslationQueue:
             return False
         key = observation_key(text, observation.language)
         try:
-            cached = self.cache.get(key)
+            cached = None if getattr(self.provider, 'contextual', False) else self.cache.get(key)
         except OSError:
             cached = None
         if cached is not None:
@@ -392,7 +392,9 @@ class TranslationQueue:
             self._seen.add(key)
             self._pending.add(key)
             generation = self._generation
-        self._jobs.put((generation, TextObservation(text, observation.language, observation.confidence, observation.observed_at)))
+            provider = self.provider
+            context_epoch = getattr(provider, 'context_epoch', None)
+        self._jobs.put((generation, provider, context_epoch, TextObservation(text, observation.language, observation.confidence, observation.observed_at)))
         return True
 
     def poll_result(self) -> TranslationEntry | None:
@@ -438,7 +440,7 @@ class TranslationQueue:
                 continue
             if job is None:
                 return
-            generation, observation = job
+            generation, provider, context_epoch, observation = job
             if generation != self._generation:
                 continue
             key = observation_key(observation.text, observation.language)
@@ -448,11 +450,14 @@ class TranslationQueue:
                     entry = TranslationEntry(key, observation.text, observation.language, "", "paused", observation.observed_at)
                 else:
                     allowed = self._wait_for_budget(len(observation.text))
-                    if not allowed or self._paused or self._stop_event.is_set():
+                    if not allowed or self._paused or self._stop_event.is_set() or generation != self._generation:
                         entry = TranslationEntry(key, observation.text, observation.language, "", "paused", observation.observed_at)
                     else:
                         try:
-                            translated = self.provider.translate(observation.text, observation.language)
+                            if context_epoch is not None:
+                                translated = provider.translate_in_context(observation.text, observation.language, context_epoch)
+                            else:
+                                translated = provider.translate(observation.text, observation.language)
                             entry = TranslationEntry(key, observation.text, observation.language, translated, "translated", observation.observed_at)
                             successful = True
                         except Exception as exc:

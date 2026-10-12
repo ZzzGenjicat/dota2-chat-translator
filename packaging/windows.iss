@@ -40,7 +40,7 @@ Name: "chinesesimplified"; MessagesFile: "compiler:Default.isl,ChineseSimplified
 
 [Messages]
 ReadyLabel1=点击“安装”即可安装 Dota 2 本地聊天翻译。
-ReadyLabel2a=本地模型和运行环境已经包含，安装与翻译无需下载文件。安装完成后，按程序提示安装一次游戏直读配置并重启 Dota 2。
+ReadyLabel2a=运行环境已经包含。首次打开会自动下载并校验一次本地模型，后续翻译全程离线。首次按程序提示安装一次游戏直读配置并重启 Dota 2。
 
 [Files]
 Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

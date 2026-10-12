@@ -1,25 +1,19 @@
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_all
 
 root = Path(SPECPATH).parent
-model = root / 'models' / 'm2m100-418m-ct2-int8'
-if not (model / 'model.bin').is_file():
-    raise RuntimeError('Install and verify the model before building')
-ct_data, ct_bins, ct_imports = collect_all('ctranslate2')
-sp_data, sp_bins, sp_imports = collect_all('sentencepiece')
-# CUDA/cuDNN are optional dynamic backends; this distribution is CPU only.
-ct_bins = [(source, target) for source, target in ct_bins
-           if not Path(source).name.lower().startswith(('cudnn', 'cublas', 'cudart'))]
+runtime = root / 'vendor' / 'llama'
+if not (runtime / 'llama-server.exe').is_file():
+    raise RuntimeError('Install the verified native CPU runtime before building')
 a = Analysis(
     [str(root / 'run.py')], pathex=[str(root / 'src')],
-    binaries=ct_bins + sp_bins,
-    datas=ct_data + sp_data + [(str(model), 'models/m2m100-418m-ct2-int8'),
+    binaries=[(str(path), 'vendor/llama') for path in runtime.iterdir() if path.suffix.lower() in ('.exe', '.dll')],
+    datas=[
                              (str(root / 'data' / 'dota_chat_lexicon.json'), 'data'),
                              (str(root / 'packaging' / 'MODEL_NOTICE.txt'), '.'),
                              (str(root / 'packaging' / 'WINDOWS_FIRST_USE.txt'), '.'),
                              (str(root / 'build' / 'third-party-licenses'), 'THIRD_PARTY_LICENSES')],
-    hiddenimports=ct_imports + sp_imports,
-    excludes=['torch', 'transformers', 'tensorflow', 'pytest', 'psutil'],
+    hiddenimports=[],
+    excludes=['torch', 'transformers', 'tensorflow', 'pytest', 'ctranslate2', 'sentencepiece', 'numpy'],
     noarchive=False,
 )
 # Hooks can collect optional DLLs again while scanning dependencies.

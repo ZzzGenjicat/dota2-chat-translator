@@ -2,24 +2,22 @@
 from pathlib import Path
 import platform
 import tomllib
-from PyInstaller.utils.hooks import collect_all
 
 root = Path(SPECPATH).parent
-model = root / 'models' / 'm2m100-418m-ct2-int8'
+runtime = root / 'vendor' / 'llama'
 version = tomllib.loads((root / 'pyproject.toml').read_text(encoding='utf-8'))['project']['version']
-if not (model / 'model.bin').is_file():
-    raise RuntimeError('Install and verify the model before building')
-ct_data, ct_bins, ct_imports = collect_all('ctranslate2')
-sp_data, sp_bins, sp_imports = collect_all('sentencepiece')
+if not (runtime / 'llama-server').is_file():
+    raise RuntimeError('Install the verified native CPU runtime before building')
 a = Analysis(
     [str(root / 'run.py')], pathex=[str(root / 'src')],
-    binaries=ct_bins + sp_bins,
-    datas=ct_data + sp_data + [(str(model), 'models/m2m100-418m-ct2-int8'),
+    binaries=[(str(path), 'vendor/llama') for path in runtime.iterdir()
+              if path.name == 'llama-server' or path.suffix == '.dylib'],
+    datas=[
                              (str(root / 'data' / 'dota_chat_lexicon.json'), 'data'),
                              (str(root / 'packaging' / 'MODEL_NOTICE.txt'), '.'),
                              (str(root / 'build' / 'third-party-licenses'), 'THIRD_PARTY_LICENSES')],
-    hiddenimports=ct_imports + sp_imports,
-    excludes=['torch', 'transformers', 'tensorflow', 'pytest', 'psutil'],
+    hiddenimports=[],
+    excludes=['torch', 'transformers', 'tensorflow', 'pytest', 'ctranslate2', 'sentencepiece', 'numpy'],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

@@ -16,6 +16,7 @@ import winreg
 
 from install_offline_model import install
 from package_licenses import collect_licenses
+from native_model_fixture import smoke_environment, MODEL_FOLDER
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_ID = '{9D69E4A5-B037-475A-B271-D20229C6DFA8}'
@@ -48,8 +49,9 @@ def clean_environment() -> dict:
 
 
 def frozen_check(app: Path, report: Path, env: dict) -> dict:
-    process = subprocess.run([str(app), '--self-test', '--report', str(report)], cwd=app.parent,
-                             env=env, timeout=180)
+    with tempfile.TemporaryDirectory(prefix='offline-model-fixture-') as data:
+        process = subprocess.run([str(app), '--self-test', '--report', str(report)], cwd=app.parent,
+                                 env=smoke_environment(env, Path(data)), timeout=300)
     result = json.loads(report.read_text(encoding='utf-8'))
     if process.returncode or not result.get('passed'):
         raise RuntimeError(f'Frozen offline check failed: {result}')
@@ -126,17 +128,14 @@ def exercise_installer(installer: Path, report: Path, env: dict) -> None:
 def build() -> None:
     if sys.platform != 'win32' or platform.machine().lower() not in ('amd64', 'x86_64'):
         raise RuntimeError('Build with native 64-bit CPython on Windows')
-    import ctranslate2
-    if 'int8' not in ctranslate2.get_supported_compute_types('cpu'):
-        raise RuntimeError('CTranslate2 does not support CPU INT8')
-    install(ROOT / 'models' / 'm2m100-418m-ct2-int8', verify_only=True)
+    install(ROOT / 'models' / MODEL_FOLDER, verify_only=True, native_fixture=True)
     collect_licenses(ROOT)
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm',
                     '--distpath', str(ROOT / 'dist'), '--workpath', str(ROOT / 'build' / 'pyinstaller'),
                     str(ROOT / 'packaging' / 'windows.spec')], cwd=ROOT, check=True)
     app_dir = ROOT / 'dist' / 'Dota2ChatTranslator'
     internal = app_dir / '_internal'
-    for name in ('python312.dll', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll'):
+    for name in ('python312.dll', 'vcruntime140.dll'):
         if not any(path.name.lower() == name for path in internal.rglob('*.dll')):
             raise RuntimeError(f'App-local runtime dependency is missing: {name}')
     if any(path.name.lower().startswith(('cudnn', 'cublas', 'cudart')) for path in internal.rglob('*.dll')):

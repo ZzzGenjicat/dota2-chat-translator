@@ -18,6 +18,8 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) { throw 'Offline dependencies could not be installed.' }
 & $PythonPath tools/install_offline_model.py
 if ($LASTEXITCODE -ne 0) { throw 'Model download or verification failed.' }
+& $PythonPath tools/install_llama_runtime.py
+if ($LASTEXITCODE -ne 0) { throw 'Local CPU runtime download or verification failed.' }
 $selectedRuntime = (& $PythonPath -X utf8 -c 'import sys; print(sys.executable)').Trim()
 if (-not (Test-Path -LiteralPath $selectedRuntime -PathType Leaf)) { throw 'Selected Python runtime path is invalid.' }
 $translatorRoot = [System.IO.Path]::GetFullPath($PSScriptRoot).TrimEnd('\') + '\'

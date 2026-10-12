@@ -57,7 +57,7 @@ class TranslatorApp:
         self.opacity_var = tk.DoubleVar(value=self.settings.opacity)
         self.font_size_var = tk.IntVar(value=self.settings.font_size)
         self.status_var = tk.StringVar(value="已暂停；点击开始抓取游戏聊天")
-        self.translation_status_var = tk.StringVar(value='本地离线 · M2M100 418M INT8')
+        self.translation_status_var = tk.StringVar(value='本地离线 · ' + self.controller.engine.model_file.stem)
         self.model_status_var = tk.StringVar(value=self.controller.engine.status)
         self.gsi_status_var = tk.StringVar(value="正在检查游戏直读配置…")
         self._rendered_rows: tuple = ()
@@ -163,9 +163,9 @@ class TranslatorApp:
         self.settings_panel.pack(fill=tk.BOTH, expand=True)
         advanced = self.settings_panel
         ttk.Label(advanced, text='本地翻译', style='Section.TLabel').pack(anchor=tk.W, pady=(0, 8))
-        ttk.Label(advanced, text='模型文件夹', style='SurfaceMuted.TLabel').pack(anchor=tk.W)
+        ttk.Label(advanced, text='本地模型（需 32 GB 内存，当前可用至少 22 GB）', style='SurfaceMuted.TLabel', wraplength=410).pack(anchor=tk.W)
         ttk.Entry(advanced, textvariable=self.model_path_var, style='App.TEntry').pack(fill=tk.X, pady=(4, 5))
-        ttk.Button(advanced, text='选择模型文件夹', command=self._choose_model_path, style='App.TButton').pack(fill=tk.X)
+        ttk.Button(advanced, text='选择 GGUF 模型文件', command=self._choose_model_path, style='App.TButton').pack(fill=tk.X)
         thread_row = ttk.Frame(advanced, style='Surface.TFrame')
         thread_row.pack(fill=tk.X, pady=(10, 6))
         ttk.Label(thread_row, text='CPU 线程数（默认 2）', style='SurfaceMuted.TLabel').pack(side=tk.LEFT)
@@ -334,7 +334,8 @@ class TranslatorApp:
         self.status_var.set(self.controller.capture_status)
 
     def _choose_model_path(self) -> None:
-        selected = filedialog.askdirectory(parent=self.settings_window, title='选择 M2M100 INT8 模型文件夹')
+        selected = filedialog.askopenfilename(parent=self.settings_window, title='选择本地 GGUF 模型（分卷模型选第一卷）',
+                                             filetypes=[('本地模型', '*.gguf')])
         if selected:
             self.model_path_var.set(portable_resource_path(selected))
 
@@ -350,6 +351,7 @@ class TranslatorApp:
             return
         self.settings = self.controller.settings
         self.model_path_var.set(self.settings.offline_model_path)
+        self.translation_status_var.set('本地离线 · ' + self.controller.engine.model_file.stem)
         self.outgoing_translator.provider = self.controller.outgoing_provider
         self._save_settings()
         self._schedule_outgoing_translation()
@@ -364,6 +366,8 @@ class TranslatorApp:
         self.offline_translation_button.configure(state=tk.DISABLED)
         def work() -> None:
             try:
+                if getattr(sys, 'frozen', False):
+                    engine.prepare_model(progress=lambda message: self.model_events.put((engine, message, 'progress')))
                 engine.warmup()
                 message = engine.status
             except Exception as exc:
@@ -531,9 +535,14 @@ class TranslatorApp:
                 self._start_outgoing_translation()
         while True:
             try:
-                engine, message = self.model_events.get_nowait()
+                event = self.model_events.get_nowait()
+                engine, message = event[:2]
             except queue.Empty:
                 break
+            if len(event) == 3:
+                if engine is self.controller.engine:
+                    self.model_status_var.set(message)
+                continue
             self._warming_engine = None
             if engine is self.controller.engine:
                 self.model_status_var.set(message)

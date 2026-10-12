@@ -27,7 +27,7 @@ def configure_low_impact_runtime() -> None:
 def offline_install_hint() -> str:
     if getattr(sys, 'frozen', False):
         platform_name = 'Mac' if sys.platform == 'darwin' else 'Windows'
-        return f'请重新安装包含本地模型的 {platform_name} 安装包'
+        return f'请重试本地模型准备；运行环境缺失时重新安装 {platform_name} 安装包'
     if sys.platform == 'darwin':
         return '请重新安装包含本地模型的 Mac 安装包；源码运行请先执行 install_offline.command'
     return '请运行 install_offline.ps1（64 位 Python 3.12）'

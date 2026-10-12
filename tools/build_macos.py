@@ -14,6 +14,7 @@ import tomllib
 
 from install_offline_model import install
 from package_licenses import collect_licenses
+from native_model_fixture import smoke_environment, MODEL_FOLDER
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,13 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 def build(expected_arch: str) -> None:
     if sys.platform != 'darwin' or platform.machine() != expected_arch:
         raise RuntimeError(f'Build on a native {expected_arch} Mac; cross-compilation is not supported')
-    import ctranslate2
     import tkinter as tk
-    if 'int8' not in ctranslate2.get_supported_compute_types('cpu'):
-        raise RuntimeError('The native CTranslate2 wheel does not support CPU INT8')
     test_root = tk.Tk()
     test_root.destroy()
-    install(ROOT / 'models' / 'm2m100-418m-ct2-int8', verify_only=True)
+    install(ROOT / 'models' / MODEL_FOLDER, verify_only=True, native_fixture=True)
     collect_licenses(ROOT)
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm',
                     '--distpath', str(ROOT / 'dist'), '--workpath', str(ROOT / 'build' / 'pyinstaller'),
@@ -48,9 +46,10 @@ def build(expected_arch: str) -> None:
     with tempfile.TemporaryDirectory(prefix='移动后 with spaces ') as moved:
         moved_app = Path(moved) / 'Dota2ChatTranslator.app'
         shutil.copytree(app, moved_app, symlinks=True)
+        clean_env = smoke_environment(clean_env, Path(moved) / 'model-cache')
         subprocess.run([str(moved_app / 'Contents' / 'MacOS' / 'Dota2ChatTranslator'),
                         '--self-test', '--report', str(report)], cwd=moved, env=clean_env,
-                       check=True, timeout=180)
+                       check=True, timeout=300)
     if not json.loads(report.read_text(encoding='utf-8'))['passed']:
         raise RuntimeError('Relocated frozen app self-test failed')
     with tempfile.TemporaryDirectory(prefix='dota-dmg-') as stage:

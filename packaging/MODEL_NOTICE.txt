@@ -1,14 +1,13 @@
-M2M100 418M offline translation model
+Local GGUF translation models
 
-Base model: Meta / facebook/m2m100_418M
-https://huggingface.co/facebook/m2m100_418M
-The base model repository identifies its license as MIT.
+Model: Tencent / Hy-MT2-30B-A3B (Apache-2.0)
+https://huggingface.co/tencent/Hy-MT2-30B-A3B
+Official Q4_K_M conversion:
+https://huggingface.co/tencent/Hy-MT2-30B-A3B-GGUF
+Pinned revision: fd3dcbb6b31e9e03923ef4f9f42500f74c3851c3
+SHA256: bb44b11bb0f7cd3d1321645b41e911cd3de2e473731227fc6bf37aa18b543f88
+Models are downloaded once, verified, and stored locally with a verification receipt.
 
-CTranslate2 INT8 conversion: JustFrederik/m2m_100_418m_ct2_int8
-https://huggingface.co/JustFrederik/m2m_100_418m_ct2_int8
-Pinned revision: 1aeed44db4dd61a486bba44acf54c76507082a2c
-SHA256 checksums and origin are recorded in models/m2m100-418m-ct2-int8/manifest.json.
-
-The application uses CTranslate2 (MIT), SentencePiece (Apache-2.0),
-NumPy (BSD), Python (PSF) and Tcl/Tk. These are separate third-party components.
+CPU runtime: llama.cpp b11429 (MIT). The application also uses Python (PSF),
+Pillow, certifi, and Tcl/Tk. These are separate third-party components.
 Bundled third-party license files are included under THIRD_PARTY_LICENSES.

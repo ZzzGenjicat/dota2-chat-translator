@@ -12,6 +12,7 @@ release/
 models/
 data/translation_cache_*.json
 data/translation_cache_offline_*.sqlite3*
+data/translation_cache_llm_*.sqlite3*
 data/translation_cache.json
 config/translator_settings.json
 config/python_runtime.txt

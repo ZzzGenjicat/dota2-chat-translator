@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .dota_terminology import local_term_translation, localize_translation
 from .chat_lexicon import ChatLexicon
-from .offline_translation import M2M100Engine, OfflineTranslationProvider, cache_path, resolve_model_path, make_translation_cache
+from .llm_translation import LocalLLMEngine, LocalTranslationProvider, cache_path, resolve_model_path, make_translation_cache
 from .app_paths import portable_resource_path, resource_root
 from .gsi_capture import GsiListener
 from .text_recognition import is_chat_wheel_message, normalize_text, observation_key, similar_observations
@@ -43,10 +43,10 @@ class TranslatorController:
         self.settings = replace(settings, translation_backend='offline',
                                 offline_model_path=portable_resource_path(resolve_model_path(settings.offline_model_path)))
         lexicon = ChatLexicon()
-        self.engine = M2M100Engine(resolve_model_path(settings.offline_model_path), settings.offline_cpu_threads)
+        self.engine = LocalLLMEngine(resolve_model_path(settings.offline_model_path), settings.offline_cpu_threads)
         self.translation_cache = translation_cache or make_translation_cache(self.engine.model_path, lexicon)
-        incoming = OfflineTranslationProvider(self.engine, self.translation_cache, 'zh', lexicon)
-        self.outgoing_provider = OfflineTranslationProvider(self.engine, self.translation_cache, 'ru', lexicon)
+        incoming = LocalTranslationProvider(self.engine, self.translation_cache, 'zh', lexicon, auto_history=True)
+        self.outgoing_provider = LocalTranslationProvider(self.engine, self.translation_cache, 'ru', lexicon)
         self.translation_queue = translation_queue or TranslationQueue(
             incoming,
             self.translation_cache,
@@ -93,9 +93,13 @@ class TranslatorController:
 
     def clear_output(self) -> None:
         self._discard_pending_observations()
+        self.translation_queue.clear_memory()
         self.rows.clear()
         self._rows_by_key.clear()
         self._seen_message_texts.clear()
+        clear_context = getattr(self.translation_queue.provider, 'clear_context', None)
+        if clear_context is not None:
+            clear_context()
 
     def _discard_pending_observations(self) -> None:
         while True:
@@ -107,6 +111,9 @@ class TranslatorController:
     def clear_cache(self) -> None:
         self.translation_queue.clear_memory()
         self.translation_cache.clear()
+        clear_context = getattr(self.translation_queue.provider, 'clear_context', None)
+        if clear_context is not None:
+            clear_context()
         for index, row in enumerate(self.rows):
             if row.status != "queued":
                 continue
@@ -144,7 +151,7 @@ class TranslatorController:
             return
         local = local_term_translation(text)
         try:
-            cached = self.translation_cache.get(key) if local is None else None
+            cached = self.translation_cache.get(key) if local is None and not getattr(self.translation_queue.provider, 'contextual', False) else None
         except OSError:
             cached = None
         if local is not None:
@@ -205,15 +212,15 @@ class TranslatorController:
                                offline_model_path=portable_resource_path(resolve_model_path(model_path.strip())),
                                offline_cpu_threads=max(1, min(4, int(cpu_threads))), network_paused=False)
         lexicon = ChatLexicon()
-        engine = M2M100Engine(resolve_model_path(new_settings.offline_model_path), new_settings.offline_cpu_threads)
+        engine = LocalLLMEngine(resolve_model_path(new_settings.offline_model_path), new_settings.offline_cpu_threads)
         old_engine = self.engine
         self.translation_queue.clear_memory()
         old_engine.close()
         self.translation_cache = make_translation_cache(engine.model_path, lexicon)
         self.translation_queue.cache = self.translation_cache
         self.translation_queue.set_paused(False)
-        self.translation_queue.set_provider(OfflineTranslationProvider(engine, self.translation_cache, 'zh', lexicon))
-        self.outgoing_provider = OfflineTranslationProvider(engine, self.translation_cache, 'ru', lexicon)
+        self.translation_queue.set_provider(LocalTranslationProvider(engine, self.translation_cache, 'zh', lexicon, auto_history=True))
+        self.outgoing_provider = LocalTranslationProvider(engine, self.translation_cache, 'ru', lexicon)
         self.engine = engine
         self.settings = new_settings
         # A retired active engine releases its weights before the global
@@ -235,9 +242,9 @@ class TranslatorController:
     @staticmethod
     def _make_provider(settings: TranslatorSettings, chatgpt_auth: object | None = None):
         lexicon = ChatLexicon()
-        engine = M2M100Engine(resolve_model_path(settings.offline_model_path), settings.offline_cpu_threads)
+        engine = LocalLLMEngine(resolve_model_path(settings.offline_model_path), settings.offline_cpu_threads)
         cache = make_translation_cache(engine.model_path, lexicon)
-        return OfflineTranslationProvider(engine, cache, 'zh', lexicon)
+        return LocalTranslationProvider(engine, cache, 'zh', lexicon)
 
 
 def _row_from_entry(entry: TranslationEntry) -> DisplayRow:

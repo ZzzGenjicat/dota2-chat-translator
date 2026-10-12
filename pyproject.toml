@@ -1,14 +1,12 @@
 [project]
 name = "dota2-map-assistant"
-version = "0.3.3"
-description = "Dota 2 chat translator with local M2M100 CTranslate2 INT8 inference."
+version = "0.4.0"
+description = "Offline Dota 2 chat translator with contextual local GGUF inference."
 requires-python = ">=3.12"
 dependencies = [
     "Pillow>=10",
     "certifi>=2024.2",
-    "ctranslate2==4.8.2",
-    "sentencepiece==0.2.1",
-    "numpy>=2,<3",
+    "psutil==7.2.2",
 ]
 
 [tool.pytest.ini_options]

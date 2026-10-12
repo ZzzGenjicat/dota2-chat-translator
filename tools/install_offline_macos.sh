@@ -15,3 +15,4 @@ fi
 "$PYTHON" -m venv "$APP_DIR/.venv"
 "$APP_DIR/.venv/bin/python" -m pip install --only-binary=:all: -r "$APP_DIR/requirements.txt"
 "$APP_DIR/.venv/bin/python" "$APP_DIR/tools/install_offline_model.py"
+"$APP_DIR/.venv/bin/python" "$APP_DIR/tools/install_llama_runtime.py"
