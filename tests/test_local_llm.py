@@ -7,7 +7,7 @@ import threading
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 
 class LocalLLMTests(unittest.TestCase):
     def module(self):
@@ -113,6 +113,58 @@ class LocalLLMTests(unittest.TestCase):
                 e.translate_message('тест','ru','zh')
         self.assertIsNotNone(child.poll())
         self.assertIsNone(e._process)
+
+    def test_close_waits_for_owned_process_even_while_inference_lock_is_busy(self):
+        m=self.module(); e=m.LocalLLMEngine()
+        class Process:
+            exited=False
+            def poll(self): return 0 if self.exited else None
+            def terminate(self): pass
+            def wait(self,timeout): self.exited=True; return 0
+        process=Process(); e._process=process
+        ready,release=threading.Event(),threading.Event()
+        def hold():
+            with e._lock: ready.set(); release.wait(2)
+        worker=threading.Thread(target=hold); worker.start()
+        try:
+            self.assertTrue(ready.wait(1)); e.close()
+            self.assertIsNotNone(process.poll(),'Quit must release mapped weights and DLLs before returning')
+        finally:
+            release.set(); worker.join(2); e.close()
+
+    def test_close_cannot_leave_a_process_created_during_shutdown(self):
+        m=self.module()
+        entered,release,closing,closed=threading.Event(),threading.Event(),threading.Event(),threading.Event()
+        errors=[]
+        class Process:
+            exited=False
+            def poll(self): return 0 if self.exited else None
+            def terminate(self): self.exited=True
+            def wait(self,timeout): self.exited=True; return 0
+        process=Process()
+        def spawn(*args,**kwargs): entered.set(); release.wait(2); return process
+        with tempfile.TemporaryDirectory() as tmp:
+            model=Path(tmp)/'model.gguf'; model.write_bytes(b'fixture')
+            server=Path(tmp)/'server'; server.write_bytes(b'fixture')
+            e=m.LocalLLMEngine(model)
+            def load():
+                try: e._load()
+                except RuntimeError as exc: errors.append(str(exc))
+            def close(): closing.set(); e.close(); closed.set()
+            with patch.object(m.LocalLLMEngine,'server_file',new_callable=PropertyMock,return_value=server), \
+                 patch('subprocess.Popen',side_effect=spawn),patch.object(e,'_request',return_value={'status':'ok'}), \
+                 patch.object(m,'configure_low_impact_runtime'):
+                worker=threading.Thread(target=load); worker.start()
+                self.assertTrue(entered.wait(1))
+                stopper=threading.Thread(target=close); stopper.start()
+                try:
+                    self.assertTrue(closing.wait(1))
+                    self.assertFalse(closed.wait(.05),'Quit must account for an in-progress process creation')
+                    release.set(); worker.join(2); stopper.join(2)
+                    self.assertTrue(closed.is_set()); self.assertIsNotNone(process.poll())
+                    self.assertTrue(all('已关闭' in message for message in errors))
+                finally:
+                    release.set(); worker.join(2); stopper.join(2); e.close()
 
     def test_empty_or_incomplete_output_is_never_cached(self):
         m=self.module()

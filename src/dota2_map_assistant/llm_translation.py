@@ -146,6 +146,7 @@ class LocalLLMEngine:
         self.cpu_threads = max(1, min(4, int(cpu_threads)))
         self.idle_seconds = idle_seconds
         self._lock = threading.RLock()
+        self._process_lock = threading.Lock()
         self._process: subprocess.Popen | None = None
         self._last_used = time.monotonic()
         self._closed = False
@@ -230,13 +231,17 @@ class LocalLLMEngine:
             ctypes.windll.kernel32.SetErrorMode(0x8003)
             flags = subprocess.CREATE_NO_WINDOW | subprocess.BELOW_NORMAL_PRIORITY_CLASS
         self._status = '正在加载本地模型…'
-        self._process = subprocess.Popen(self.server_command(port), cwd=self.server_file.parent,
-                            env=environment, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL, creationflags=flags)
+        with self._process_lock:
+            if self._closed:
+                raise RuntimeError('本地模型已关闭')
+            process = subprocess.Popen(self.server_command(port), cwd=self.server_file.parent,
+                                env=environment, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, creationflags=flags)
+            self._process = process
         deadline = time.monotonic() + 120
         try:
             while time.monotonic() < deadline and not self._closed:
-                if self._process.poll() is not None:
+                if process.poll() is not None:
                     raise RuntimeError('本地模型加载失败，请检查模型文件和运行环境')
                 try:
                     if self._request('/health', timeout=1).get('status') == 'ok':
@@ -334,7 +339,12 @@ class LocalLLMEngine:
             raise
 
     def _unload(self) -> None:
-        process, self._process = self._process, None
+        with self._process_lock:
+            process, self._process = self._process, None
+        self._stop_process(process)
+
+    @staticmethod
+    def _stop_process(process) -> None:
         if process is not None:
             if process.poll() is None:
                 process.terminate()
@@ -356,12 +366,13 @@ class LocalLLMEngine:
                 self._lock.release()
 
     def close(self) -> None:
-        self._closed = True
-        self._cancel_install.set()
-        # Interrupt inference immediately; UI shutdown never waits for translation.
-        process = self._process
-        if process is not None and process.poll() is None:
-            process.terminate()
+        # Serialize only process creation, never loading or inference. Waiting
+        # for terminated children releases their mapped files before app exit.
+        with self._process_lock:
+            self._closed = True
+            self._cancel_install.set()
+            process = self._process
+        self._stop_process(process)
         if self._lock.acquire(blocking=False):
             try:
                 self._unload()

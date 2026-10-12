@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 
 from install_offline_model import install
@@ -17,6 +18,18 @@ from package_licenses import collect_licenses
 from native_model_fixture import smoke_environment, MODEL_FOLDER
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def create_dmg(stage: Path, destination: Path) -> None:
+    args = ['hdiutil', 'create', '-volname', 'Dota 2 本地聊天翻译', '-srcfolder', str(stage),
+            '-format', 'UDZO', '-ov', str(destination)]
+    for attempt in range(3):
+        result = subprocess.run(args, capture_output=True, text=True, timeout=600)
+        if result.returncode == 0:
+            return
+        if 'resource busy' not in result.stderr.lower() or attempt == 2:
+            raise RuntimeError('DMG creation failed: ' + result.stderr.strip())
+        time.sleep(attempt + 1)
 
 
 def build(expected_arch: str) -> None:
@@ -57,8 +70,7 @@ def build(expected_arch: str) -> None:
         shutil.copytree(app, stage / app.name, symlinks=True)
         (stage / 'Applications').symlink_to('/Applications', target_is_directory=True)
         shutil.copy2(ROOT / 'packaging' / 'MAC_FIRST_USE.txt', stage / '首次使用说明.txt')
-        subprocess.run(['hdiutil', 'create', '-volname', 'Dota 2 本地聊天翻译', '-srcfolder', str(stage),
-                        '-format', 'UDZO', '-ov', str(release / f'{stem}.dmg')], check=True, timeout=600)
+        create_dmg(stage, release / f'{stem}.dmg')
     dmg = release / f'{stem}.dmg'
     with dmg.open('rb') as stream:
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()
