@@ -2,7 +2,17 @@
 
 把 Dota 2 里的俄语聊天译成中文，也能把你输入的中文译成俄语，复制后发到游戏中。翻译在本机完成，支持 Windows 和 Mac；词库优先保留原话语气、粗话强度和常见游戏口语，复杂黑话仍可能误译。
 
-## 下载和安装
+## 新模型预览版 0.4.0
+
+**Hy-MT2 30B-A3B Q4**，整句翻译并参考最近几条聊天。需要至少 **32 GB 总内存、22 GB 当前可用内存**，运行约占 17 GB；低内存电脑暂不适用。默认 2 个 CPU 线程，仍有黑话、错字及省略误译，响应并非秒出。
+
+[预览版下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.4.0)：[Windows 安装版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.0/Dota2ChatTranslator-0.4.0-windows-x64-setup.exe) · [Apple 芯片 Mac](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.0/Dota2ChatTranslator-0.4.0-macos-arm64.dmg) · [Intel Mac](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.0/Dota2ChatTranslator-0.4.0-macos-x86_64.dmg)
+
+无需安装 Python。首次打开会自动下载约 17 GB 模型并校验，界面显示进度；之后翻译全程离线。Mac 需要 macOS 14 或更新版本。
+
+新模型保留在[独立预览源码](https://github.com/ZzzGenjicat/dota2-chat-translator/tree/v0.4.0)。默认源码仍是原版本；从源码安装新模型，请使用该标签下的安装脚本和[本地模型说明](https://github.com/ZzzGenjicat/dota2-chat-translator/blob/v0.4.0/README.md#本地模型安装)。
+
+## 原版本 0.3.3 下载和安装
 
 [安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.3.3)
 
