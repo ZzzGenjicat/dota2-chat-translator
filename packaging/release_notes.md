@@ -20,4 +20,6 @@ Dota 2 俄语↔中文聊天翻译，支持 Windows 和 Mac，翻译全程在本
 
 本预览版暂未取得系统认可的发布签名。首次被拦截时，Windows 查看该文件“更多信息 → 仍要运行”；Mac 尝试打开一次后，查看“系统设置 → 隐私与安全性 → 仍要打开”。无需关闭系统整体保护。
 
-本地模型安装和使用方法见[项目首页](https://github.com/ZzzGenjicat/dota2-chat-translator)。普通用户只需下载 EXE 或 DMG，校验文件可忽略；Source code 是源码。
+本地模型安装和使用方法见[预览源码首页](https://github.com/ZzzGenjicat/dota2-chat-translator/tree/codex/context-local-model)。普通用户只需下载 EXE 或 DMG，校验文件可忽略；Source code 是源码。
+
+[600 条前后译文与评测](https://github.com/ZzzGenjicat/dota2-chat-translator/blob/codex/context-local-model/eval/chat600/results/report.md)：模拟样本辅助评分的可用结果从 242/600 提高至 335/600，单独验证从 51/120 提高至 60/120。中文长句转俄语仍不稳定，尚不适合作为可靠译文直接发送。
