@@ -111,8 +111,9 @@ class LightweightPhrasebookTests(unittest.TestCase):
                     for alias in (entry[source], *entry.get(source + '_aliases', ())):
                         key = re.sub(r'\s+', ' ', alias.strip()).casefold().rstrip('。.!！?？')
                         with self.subTest(table=table, source=source, alias=alias):
-                            previous = translations[table][source].setdefault(key, entry[target])
-                            self.assertEqual(previous, entry[target], f'conflicting {source} alias: {alias}')
+                            meaning = entry.get('standalone_zh', entry[target]) if source == 'ru' else entry[target]
+                            previous = translations[table][source].setdefault(key, meaning)
+                            self.assertEqual(previous, meaning, f'conflicting {source} alias: {alias}')
         for source in ('zh', 'ru'):
             for key, phrase in translations['phrases'][source].items():
                 term = translations['terms'][source].get(key)

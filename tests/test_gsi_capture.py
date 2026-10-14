@@ -40,6 +40,29 @@ class GsiCaptureTests(unittest.TestCase):
         self.assertEqual(len(reader.read(first)), 1)
         self.assertEqual(len(reader.read(second)), 1)
 
+    def test_documented_latin_russian_spellings_are_received_once(self):
+        reader = GsiChatReader()
+        payload = {"events": [
+            {"game_time": index, "event_type": "chat_message", "player_id": 1,
+             "channel_type": 11, "message": text}
+            for index, text in enumerate((" CYKA! ", "idi nahui", "push mid", "unknownlatin"))
+        ]}
+        raw = json.dumps(payload)
+        messages = reader.read(raw)
+        self.assertEqual([message.text for message in messages], ["CYKA!", "idi nahui"])
+        self.assertTrue(all(message.language == "rus" for message in messages))
+        self.assertEqual(reader.read(raw), [])
+
+    def test_latin_russian_dictionary_is_not_a_substring_or_fuzzy_detector(self):
+        reader = GsiChatReader()
+        payload = {"events": [
+            {"game_time": index, "event_type": "chat_message", "player_id": 1,
+             "channel_type": 11, "message": text}
+            for index, text in enumerate(("my name is cyka", "cykaaunknown", "this is a bot",
+                                           "normal", "go", "AM", "sf"))
+        ]}
+        self.assertEqual(reader.read(json.dumps(payload)), [])
+
     def test_equal_game_times_follow_oldest_first_with_newest_first_feed(self):
         reader = GsiChatReader()
         payload = {"events": [

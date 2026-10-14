@@ -188,7 +188,7 @@ class M2M100Engine:
                 for result in results:
                     tokens = result.hypotheses[0]
                     if len(tokens) >= 128:
-                        raise ValueError('译文过长，请拆成短句，避免输出被截断')
+                        raise ValueError('模型未能可靠完成翻译，原文已保留')
                     tokens = [token for token in tokens if not (token.startswith('__') and token.endswith('__'))
                               and token not in ('<s>', '</s>', '<pad>')]
                     output = self._tokenizer.decode(tokens).strip()

@@ -2,17 +2,17 @@
 
 把 Dota 2 的俄语聊天译成中文，也能把输入的中文译成俄语，复制后发到游戏。支持 Windows 和 Mac，翻译全程离线，不使用屏幕识别。
 
-**0.4.2 回到轻量版：内置约 494MB 的 M2M100 INT8 模型，预设词句优先，其他消息由小模型翻译。** 不再自动下载或加载 17GB 模型。旧大模型文件保留，不自动删除。
+**0.4.3 轻量版：内置约 494MB 的 M2M100 INT8 模型，补入整理的 Dota 词库，预设词句优先，其他消息由小模型翻译。** 不再自动下载或加载 17GB 模型。旧大模型文件保留，不自动删除。
 
 ## 下载和安装
 
-[轻量版安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.4.2)
+[轻量版安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.4.3)
 
 | 电脑 | 下载 | 安装方法 |
 | --- | --- | --- |
-| Windows 10/11，64 位 | [Windows 安装版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.2/Dota2ChatTranslator-0.4.2-windows-x64-setup.exe) | 双击后点“安装” |
-| Apple 芯片 Mac | [Apple 芯片版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.2/Dota2ChatTranslator-0.4.2-macos-arm64.dmg) | 打开后拖到“应用程序” |
-| Intel Mac | [Intel 版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.2/Dota2ChatTranslator-0.4.2-macos-x86_64.dmg) | 打开后拖到“应用程序” |
+| Windows 10/11，64 位 | [Windows 安装版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.3/Dota2ChatTranslator-0.4.3-windows-x64-setup.exe) | 双击后点“安装” |
+| Apple 芯片 Mac | [Apple 芯片版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.3/Dota2ChatTranslator-0.4.3-macos-arm64.dmg) | 打开后拖到“应用程序” |
+| Intel Mac | [Intel 版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.3/Dota2ChatTranslator-0.4.3-macos-x86_64.dmg) | 打开后拖到“应用程序” |
 
 安装包已包含模型和运行环境，无需安装 Python，也无需首次下载模型。Mac 需要 macOS 14 或更新版本；在苹果菜单“关于本机”查看芯片类型。Windows ARM 暂不支持。
 
@@ -24,7 +24,7 @@
 2. 点击“开始抓取”，收到的俄语聊天会显示中文译文。
 3. 下方输入中文，自动译成俄语；点击“复制俄语”，粘贴到游戏发送。
 
-预设库包含 181 组双语短句、162 个术语和 14 个带英雄、装备或数字的模板。命中预设直接返回，缓存避免重复翻译；复杂黑话、自由长句、否定和引用仍可能误译。选人和赛后聊天漏收尚未解决。
+词库包含 572 组整句预设、759 个术语或别名组，以及 14 个带英雄、装备或数字的模板。本次新增 1706 种俄语词句和别名写法，主要补充俄语→中文；`чет изи` 会直接译成“怎么这么轻松”。可识别白名单中的 `cyka`、`idi nahui` 等拉丁字母俄语。命中预设直接返回，缓存避免重复翻译；复杂黑话、自由长句、否定和引用仍可能误译。选人和赛后聊天漏收尚未解决。
 
 默认使用 2 个 CPU 线程、不使用 GPU，空闲 3 分钟释放模型。Windows 后台资源测试中模型进程内存峰值约 0.6GB；实际占用和速度随电脑、消息长度及系统负载变化，Mac 尚未进行同等资源实测。
 

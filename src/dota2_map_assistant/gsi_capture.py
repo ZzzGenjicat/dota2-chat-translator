@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Callable, Literal
 
 from .translator_models import TextObservation
+from .chat_lexicon import ChatLexicon, russian_latin_messages
 from .text_recognition import is_chat_wheel_message
 from .steam_discovery import find_dota_dir
 from .valve_keyvalues import parse_keyvalues as _parse_keyvalues
@@ -94,6 +95,7 @@ class GsiChatReader:
     def __init__(self) -> None:
         self._matchid: str | None = None
         self._seen: set[tuple[object, ...]] = set()
+        self._russian_latin_messages = russian_latin_messages()
 
     def read(self, body: bytes | str) -> list[TextObservation]:
         try:
@@ -132,7 +134,8 @@ class GsiChatReader:
             if key in self._seen:
                 continue
             self._seen.add(key)
-            if text and _CYRILLIC.search(text):
+            if text and (_CYRILLIC.search(text)
+                         or ChatLexicon._key(text) in self._russian_latin_messages):
                 # GSI lists newest first; reverse ties within the same game second.
                 fresh.append((game_time, -len(fresh), text))
         if len(self._seen) > 5000:

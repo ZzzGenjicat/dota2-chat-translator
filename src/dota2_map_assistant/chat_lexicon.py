@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import Counter
+from functools import lru_cache
 import json
 import re
 from string import Formatter
@@ -10,6 +11,27 @@ from pathlib import Path
 from .app_paths import resource_root
 
 LEXICON_PATH = resource_root() / 'data' / 'dota_chat_lexicon.json'
+
+
+@lru_cache(maxsize=1)
+def russian_latin_messages(path: Path = LEXICON_PATH) -> frozenset[str]:
+    """Only opt-in, exact dictionary messages may bypass Cyrillic detection."""
+    try:
+        data = json.loads(path.read_bytes())
+        if data.get('schema_version') != 1:
+            return frozenset()
+        translated = set()
+        for table in ('phrases', 'terms'):
+            for entry in data[table]:
+                if 'ru' in entry.get('directions', ('zh', 'ru')):
+                    translated.update(ChatLexicon._key(alias)
+                                      for alias in (entry['ru'], *entry.get('ru_aliases', ())))
+        aliases = data.get('russian_latin_aliases', ())
+        return frozenset(ChatLexicon._key(alias) for alias in aliases
+                         if isinstance(alias, str) and re.fullmatch(r'[A-Za-z0-9 ]+', alias)
+                         and ChatLexicon._key(alias) in translated)
+    except (OSError, UnicodeError, ValueError, TypeError, KeyError, AttributeError):
+        return frozenset()
 
 
 class ChatLexicon:
@@ -52,13 +74,17 @@ class ChatLexicon:
                         if not phrase.get('whole_message_only', False):
                             self._spans[language][key] = phrase[other]
             for term in data['terms']:
+                standalone = term.get('standalone_zh', term['zh'])
+                if not isinstance(standalone, str) or not standalone.strip():
+                    raise ValueError('standalone_zh 必须是非空中文译文')
                 for language in self._directions(term):
                     other = 'ru' if language == 'zh' else 'zh'
+                    exact_meaning = standalone if language == 'ru' else term[other]
                     for alias in [term[language], *term.get(language + '_aliases', [])]:
                         key = self._key(alias)
-                        if key in self._terms[language] and self._terms[language][key] != term[other]:
+                        if key in self._terms[language] and self._terms[language][key] != exact_meaning:
                             raise ValueError(f'重复词条：{alias}')
-                        self._terms[language][key] = term[other]
+                        self._terms[language][key] = exact_meaning
                         if language == 'ru' and term.get('en'):
                             self._english_terms[key] = term['en']
                         if term.get('kind') == 'profanity':
@@ -412,7 +438,9 @@ class ChatLexicon:
             result = self._chat_template(key, source)
         if result is not None:
             suffix = re.search(r'[.!！?？]+$', text.rstrip())
-            return result + (suffix.group().replace('！', '!').replace('？', '?') if suffix else '')
+            if suffix:
+                return result.rstrip('。.!！?？') + suffix.group().replace('！', '!').replace('？', '?')
+            return result
         return None
 
     def _prepare_chat_templates(self, data: dict) -> None:
