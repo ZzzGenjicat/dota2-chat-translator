@@ -1,6 +1,6 @@
 [project]
 name = "dota2-map-assistant"
-version = "0.4.0"
+version = "0.4.1"
 description = "Offline Dota 2 chat translator with contextual local GGUF inference."
 requires-python = ">=3.12"
 dependencies = [

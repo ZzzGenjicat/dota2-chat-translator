@@ -2,19 +2,19 @@
 
 把 Dota 2 里的俄语聊天译成中文，也能把你输入的中文译成俄语，复制后发到游戏中。翻译在本机完成，支持 Windows 和 Mac；词库优先保留原话语气、粗话强度和常见游戏口语，复杂黑话仍可能误译。
 
-开发中的 0.4.0 正在更换支持上下文的本地模型，翻译质量仍在验证。以下下载暂为已发布的 0.3.3。
+本分支是使用 Hy-MT2 本地模型的独立预览版。复杂黑话、长句和粗话引用仍可能误译，需要核对；正式源码保留原有模型。
 
 ## 下载和安装
 
-[安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.3.3)
+[预览版安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.4.1)
 
 | 电脑 | 下载 | 安装方法 |
 | --- | --- | --- |
-| Windows 10/11，64 位 | [Windows 安装版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.3/Dota2ChatTranslator-0.3.3-windows-x64-setup.exe) | 双击后点“安装” |
-| Apple 芯片 Mac | [Apple 芯片版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.3/Dota2ChatTranslator-0.3.3-macos-arm64.dmg) | 打开 DMG，把程序拖到“应用程序” |
-| Intel Mac | [Intel 版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.3.3/Dota2ChatTranslator-0.3.3-macos-x86_64.dmg) | 打开 DMG，把程序拖到“应用程序” |
+| Windows 10/11，64 位 | [Windows 安装版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.1/Dota2ChatTranslator-0.4.1-windows-x64-setup.exe) | 双击后点“安装” |
+| Apple 芯片 Mac | [Apple 芯片版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.1/Dota2ChatTranslator-0.4.1-macos-arm64.dmg) | 打开 DMG，把程序拖到“应用程序” |
+| Intel Mac | [Intel 版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.1/Dota2ChatTranslator-0.4.1-macos-x86_64.dmg) | 打开 DMG，把程序拖到“应用程序” |
 
-安装包已包含本地模型和运行环境，不用安装 Python 或另下模型。Mac 需要 macOS 14 或更新版本；在苹果菜单“关于本机”查看芯片类型。Windows ARM 暂不支持。
+安装包包含运行环境，不用安装 Python。首次打开会下载并校验一次约 17 GB 的模型，之后翻译全程离线。需要至少 32 GB 总内存和 22 GB 当前可用内存；Mac 需要 macOS 14 或更新版本。在苹果菜单“关于本机”查看芯片类型。Windows ARM 暂不支持。
 
 **普通用户下载 EXE 或 DMG，不要点 Download ZIP 或 Source code。** 校验文件无需下载。
 
