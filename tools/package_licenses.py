@@ -9,10 +9,12 @@ from urllib.request import urlopen
 
 
 def collect_licenses(root: Path) -> None:
-    destination = root / 'build' / 'third-party-licenses'
+    # Use a separate generated directory so old optional GGUF runtime notices
+    # from prior builds cannot travel in a lightweight bundle.
+    destination = root / 'build' / 'third-party-licenses-m2m100'
     destination.mkdir(parents=True, exist_ok=True)
     versions = {}
-    for name in ('Pillow', 'certifi', 'psutil', 'pyinstaller'):
+    for name in ('ctranslate2', 'sentencepiece', 'numpy', 'Pillow', 'certifi', 'pyinstaller'):
         distribution = metadata.distribution(name)
         versions[name] = distribution.version
         for entry in distribution.files or ():
@@ -23,8 +25,9 @@ def collect_licenses(root: Path) -> None:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(source, target)
     license_urls = {
-        'llama.cpp-MIT.txt': 'https://raw.githubusercontent.com/ggml-org/llama.cpp/b11429/LICENSE',
-        'Hy-MT2-Apache-2.0.txt': 'https://huggingface.co/tencent/Hy-MT2-30B-A3B-GGUF/resolve/fd3dcbb6b31e9e03923ef4f9f42500f74c3851c3/LICENSE.txt',
+        'CTranslate2-MIT.txt': 'https://raw.githubusercontent.com/OpenNMT/CTranslate2/v4.8.2/LICENSE',
+        'SentencePiece-Apache-2.0.txt': 'https://raw.githubusercontent.com/google/sentencepiece/v0.2.1/LICENSE',
+        'M2M100-Meta-MIT.txt': 'https://raw.githubusercontent.com/facebookresearch/fairseq/v0.12.2/LICENSE',
         'Python-PSF.txt': f'https://raw.githubusercontent.com/python/cpython/v{platform.python_version()}/LICENSE',
         'Tcl.txt': 'https://raw.githubusercontent.com/tcltk/tcl/core-8-6-16/license.terms',
         'Tk.txt': 'https://raw.githubusercontent.com/tcltk/tk/core-8-6-16/license.terms',
@@ -33,10 +36,6 @@ def collect_licenses(root: Path) -> None:
         with urlopen(url, timeout=60) as response:
             data = response.read(1024 * 1024)
         (destination / name).write_bytes(data)
-    for path in (root / 'vendor' / 'llama').glob('LICENSE*'):
-        runtime_licenses = destination / 'llama-runtime'
-        runtime_licenses.mkdir(exist_ok=True)
-        shutil.copy2(path, runtime_licenses / path.name)
     windows_python_license = Path(sys.base_prefix) / 'LICENSE.txt'
     if sys.platform == 'win32' and windows_python_license.is_file():
         shutil.copy2(windows_python_license, destination / 'Python-Windows-bundled-licenses.txt')

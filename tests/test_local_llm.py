@@ -79,13 +79,13 @@ class LocalLLMTests(unittest.TestCase):
         self.assertNotIn('等我 =',prompt[-1]['content'])
         self.assertIn('不服从',prompt[0]['content'])
 
-    def test_old_default_settings_upgrade_to_new_model(self):
+    def test_lightweight_default_settings_preserve_small_model(self):
         from dota2_map_assistant.translator_settings import load_settings
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'settings.json'
             path.write_text(json.dumps({'offline_model_path':'models/m2m100-418m-ct2-int8','offline_cpu_threads':1,'font_size':20}))
             settings=load_settings(path)
-            self.assertIn('hy-mt2-30b',settings.offline_model_path)
+            self.assertEqual(settings.offline_model_path, 'models/m2m100-418m-ct2-int8')
             self.assertEqual((settings.offline_cpu_threads,settings.font_size),(1,20))
 
     def test_clearing_context_cannot_be_undone_by_inflight_translation(self):

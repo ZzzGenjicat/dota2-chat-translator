@@ -141,7 +141,7 @@ class TranslatorApp:
                   wraplength=250).pack(anchor=tk.W, pady=(8, 6))
         ttk.Label(side, textvariable=self.model_status_var, style='SurfaceMuted.TLabel',
                   wraplength=250).pack(anchor=tk.W, pady=(0, 8))
-        ttk.Label(side, text='俄语 → 中文 / 中文 → 俄语\n保留粗话，优先使用游戏口语。',
+        ttk.Label(side, text='俄语 → 中文 / 中文 → 俄语\n预设词句优先，其余本地翻译。',
                   style='SurfaceMuted.TLabel', wraplength=250).pack(anchor=tk.W, pady=(0, 12))
         self.offline_translation_button = ttk.Button(side, text='预热本地模型', command=self._warmup_model,
                                                     style='App.TButton')
@@ -334,8 +334,8 @@ class TranslatorApp:
         self.status_var.set(self.controller.capture_status)
 
     def _choose_model_path(self) -> None:
-        selected = filedialog.askopenfilename(parent=self.settings_window, title='选择本地 GGUF 模型（分卷模型选第一卷）',
-                                             filetypes=[('本地模型', '*.gguf')])
+        selected = filedialog.askdirectory(parent=self.settings_window, title='选择 M2M100 INT8 模型文件夹',
+                                           mustexist=True)
         if selected:
             self.model_path_var.set(portable_resource_path(selected))
 

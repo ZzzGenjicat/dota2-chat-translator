@@ -14,9 +14,8 @@ import time
 import tomllib
 import winreg
 
-from install_offline_model import install
+from install_offline_model import install, MODEL_FOLDER
 from package_licenses import collect_licenses
-from native_model_fixture import smoke_environment, MODEL_FOLDER
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_ID = '{9D69E4A5-B037-475A-B271-D20229C6DFA8}'
@@ -49,9 +48,9 @@ def clean_environment() -> dict:
 
 
 def frozen_check(app: Path, report: Path, env: dict) -> dict:
-    with tempfile.TemporaryDirectory(prefix='offline-model-fixture-') as data:
+    with tempfile.TemporaryDirectory(prefix='offline-installation-data-') as data:
         process = subprocess.run([str(app), '--self-test', '--report', str(report)], cwd=app.parent,
-                                 env=smoke_environment(env, Path(data)), timeout=300)
+                                 env={**env, 'DOTA2_TRANSLATOR_DATA_DIR': data}, timeout=300)
     result = json.loads(report.read_text(encoding='utf-8'))
     if process.returncode or not result.get('passed'):
         raise RuntimeError(f'Frozen offline check failed: {result}')
@@ -128,7 +127,7 @@ def exercise_installer(installer: Path, report: Path, env: dict) -> None:
 def build() -> None:
     if sys.platform != 'win32' or platform.machine().lower() not in ('amd64', 'x86_64'):
         raise RuntimeError('Build with native 64-bit CPython on Windows')
-    install(ROOT / 'models' / MODEL_FOLDER, verify_only=True, native_fixture=True)
+    install(ROOT / 'models' / MODEL_FOLDER, verify_only=True)
     collect_licenses(ROOT)
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm',
                     '--distpath', str(ROOT / 'dist'), '--workpath', str(ROOT / 'build' / 'pyinstaller'),

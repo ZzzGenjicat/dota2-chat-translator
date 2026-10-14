@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from .llm_translation import LocalTranslationProvider, LocalLLMEngine, make_translation_cache
+from .offline_translation import OfflineTranslationProvider, M2M100Engine, make_translation_cache
 from .chat_lexicon import ChatLexicon
 
 
 class OutgoingTranslator:
-    def __init__(self, provider: LocalTranslationProvider | None = None) -> None:
+    def __init__(self, provider: OfflineTranslationProvider | None = None) -> None:
         if provider is None:
             lexicon = ChatLexicon()
-            engine = LocalLLMEngine()
-            provider = LocalTranslationProvider(engine, make_translation_cache(engine.model_path, lexicon), 'ru', lexicon)
+            engine = M2M100Engine()
+            provider = OfflineTranslationProvider(engine, make_translation_cache(engine.model_path, lexicon), 'ru', lexicon)
         self.provider = provider
 
     def translate(self, text: str, backend: str = 'offline', model: str = '') -> str:

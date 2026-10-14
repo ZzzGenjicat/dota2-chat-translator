@@ -61,7 +61,7 @@ class _CacheOnlyFallback:
 
 
 def check_chat_quality(engine, lexicon, cache) -> dict:
-    from .llm_translation import LocalTranslationProvider as OfflineTranslationProvider
+    from .offline_translation import OfflineTranslationProvider
     from .sqlite_cache import SQLiteTranslationCache
     from .text_recognition import observation_key
 
@@ -125,19 +125,19 @@ def check_chat_quality(engine, lexicon, cache) -> dict:
 def run_checks() -> dict:
     import tkinter as tk
     from .app_paths import resource_root
-    from .llm_translation import LocalLLMEngine, default_model_path
+    from .offline_translation import M2M100Engine, default_model_path
     from .gsi_capture import GsiListener, check_gsi_config, install_gsi_config
     from .steam_discovery import find_dota_dir
     from .translator_app import TranslatorApp
     from .chat_lexicon import ChatLexicon
     from .outgoing_translation import OutgoingTranslator
-    from .llm_translation import LocalTranslationProvider as OfflineTranslationProvider
+    from .offline_translation import OfflineTranslationProvider
     from .sqlite_cache import SQLiteTranslationCache
 
     result = {'platform': platform.system(), 'architecture': platform.machine(),
               'remote_network_blocked': True, 'checks': {}}
     smoke_model = os.environ.get('DOTA2_TRANSLATOR_SMOKE_MODEL')
-    engine = LocalLLMEngine(Path(smoke_model) if smoke_model else default_model_path())
+    engine = M2M100Engine(Path(smoke_model) if smoke_model else default_model_path())
     root = None
     app = None
     listener = None
@@ -147,8 +147,7 @@ def run_checks() -> dict:
         scratch = Path(scratch)
         try:
             os.environ['DOTA2_TRANSLATOR_DATA_DIR'] = str(scratch / 'user-data')
-            # The lean installer stores verified weights in writable user data.
-            # Keep this isolated smoke app on the pre-provisioned fixture model.
+            # Keep the isolated app on the same packaged model as the probe.
             from .translator_settings import TranslatorSettings, save_settings
             from .app_paths import user_data_dir
             save_settings(user_data_dir() / 'config' / 'translator_settings.json',
@@ -160,29 +159,18 @@ def run_checks() -> dict:
             os.environ['DOTA2_TRANSLATOR_STEAM_DIR'] = str(steam)
             os.environ.pop('DOTA2_TRANSLATOR_DOTA_DIR', None)
             with offline_network_guard():
-                # The smaller fixture must not hide missing production RAM
-                # dependencies. Exercise the real guard without loading 30B.
-                import psutil
-                memory = psutil.virtual_memory()
-                guard = LocalLLMEngine()
-                try:
-                    guard.check_memory()
-                    guard_result = 'sufficient'
-                except RuntimeError as exc:
-                    if '32 GB' not in str(exc):
-                        raise
-                    guard_result = 'insufficient'
-                finally:
-                    guard.close()
-                result['checks']['production_memory_guard'] = {'state': guard_result, 'psutil': psutil.__version__,
-                                                               'total_gib': round(memory.total / 2**30, 1)}
                 started = time.monotonic()
                 engine.warmup()
                 ru_zh = engine.translate_segments(['пожалуйста, идём вместе по верхней линии'], 'ru', 'zh')[0]
                 zh_ru = engine.translate_segments(['请跟我一起守住高地'], 'zh', 'ru')[0]
-                if not ru_zh or not zh_ru or 'Q4' not in engine.status:
-                    raise AssertionError('Real bidirectional local GGUF inference failed')
+                compute_type = engine._translator.compute_type
+                if (not any('\u4e00' <= ch <= '\u9fff' for ch in ru_zh)
+                        or not any('\u0400' <= ch <= '\u04ff' for ch in zh_ru)
+                        or compute_type not in ('int8', 'int8_float32') or 'INT8' not in engine.status):
+                    raise AssertionError('Real bidirectional M2M100 CPU INT8 inference failed')
                 result['checks']['model'] = {'status': engine.status, 'ru_zh': ru_zh, 'zh_ru': zh_ru,
+                                              'backend': 'CTranslate2', 'device': 'cpu', 'compute_type': compute_type,
+                                              'model_folder': engine.model_path.name,
                                               'seconds': round(time.monotonic() - started, 3)}
                 lexicon = ChatLexicon(resource_root() / 'data' / 'dota_chat_lexicon.json')
                 provider = OfflineTranslationProvider(engine, SQLiteTranslationCache(scratch / 'cache.sqlite3'), 'ru', lexicon)
@@ -190,13 +178,13 @@ def run_checks() -> dict:
                 if 'долбо' not in insult.lower():
                     raise AssertionError('Bundled profanity lexicon lost original strength')
                 result['checks']['lexicon'] = True
-                # Exercise actual non-exact whole-message inference and the
-                # constrained profanity decoder in each native installation.
+                # Exercise model inference with compositional glossary handling
+                # in each native installation, beyond the exact shipped phrases.
                 incoming = OfflineTranslationProvider(engine, provider.cache, 'zh', lexicon)
-                complex_chat = incoming.translate('ты долбоёб, а не саппорт, где варды?', 'rus', history=())
+                complex_chat = incoming.translate('ты долбоёб, а не саппорт, где варды?', 'rus')
                 if ('傻逼' not in complex_chat or '[[DOTA_' in complex_chat
                         or not any('\u4e00' <= ch <= '\u9fff' for ch in complex_chat)):
-                    raise AssertionError('Native contextual/profanity inference failed')
+                    raise AssertionError('Native compositional/profanity inference failed')
                 result['checks']['complex_model'] = complex_chat
                 result['checks'].update(check_chat_quality(engine, lexicon, provider.cache))
                 if find_dota_dir() != dota.resolve():

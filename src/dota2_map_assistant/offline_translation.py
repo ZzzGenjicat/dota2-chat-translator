@@ -18,14 +18,24 @@ from .translator_models import TranslationEntry
 from .app_paths import resource_root, user_data_dir, recorded_resource_root
 
 APP_ROOT = resource_root()
-DEFAULT_MODEL_PATH = APP_ROOT / 'models' / 'm2m100-418m-ct2-int8'
+MODEL_FOLDER = 'm2m100-418m-ct2-int8'
+
+
+def default_model_path() -> Path:
+    bundled = APP_ROOT / 'models' / MODEL_FOLDER
+    return bundled if bundled.is_dir() else user_data_dir() / 'models' / MODEL_FOLDER
+
+
+DEFAULT_MODEL_PATH = default_model_path()
 MODEL_FILES = ('model.bin', 'config.json', 'shared_vocabulary.txt', 'spm.128k.model')
 LANGUAGES = {'rus': 'ru', 'zho': 'zh', 'eng': 'en', 'ru': 'ru', 'zh': 'zh', 'en': 'en'}
-PIPELINE_VERSION = 'm2m100-int8-chat-v3-context-lexicon-beam1-max128'
+PIPELINE_VERSION = 'm2m100-int8-chat-v4-presets-beam1-max128'
 _INFERENCE_LOCK = threading.Lock()
 
 
 def resolve_model_path(path: str) -> Path:
+    if not path.strip() or path.replace('\\', '/') == 'models/' + MODEL_FOLDER:
+        return default_model_path()
     value = Path(path).expanduser() if path.strip() else DEFAULT_MODEL_PATH
     configured = PureWindowsPath(path) if PureWindowsPath(path).is_absolute() else value
     if configured.is_absolute() and not value.exists() and configured.name == DEFAULT_MODEL_PATH.name and DEFAULT_MODEL_PATH.is_dir():
@@ -64,9 +74,9 @@ def make_translation_cache(model_path: Path, lexicon: ChatLexicon) -> SQLiteTran
 
 
 class M2M100Engine:
-    def __init__(self, model_path: Path = DEFAULT_MODEL_PATH, cpu_threads: int = 2,
+    def __init__(self, model_path: Path | None = None, cpu_threads: int = 2,
                  idle_seconds: int = 180) -> None:
-        self.model_path = model_path
+        self.model_path = model_path if model_path is not None else default_model_path()
         self.cpu_threads = max(1, min(4, int(cpu_threads)))
         self.idle_seconds = idle_seconds
         self._lock = threading.RLock()
@@ -75,6 +85,29 @@ class M2M100Engine:
         self._last_used = time.monotonic()
         self._status = '模型尚未加载'
         self._closed = False
+        self._cancel_install = threading.Event()
+
+    @property
+    def display_name(self) -> str:
+        return 'M2M100 418M INT8'
+
+    def prepare_model(self, progress=lambda message: None) -> None:
+        from .lightweight_model_install import install, is_installed, verify
+        with self._access():
+            if self.model_path.name != MODEL_FOLDER:
+                if any(not (self.model_path / name).is_file() for name in MODEL_FILES):
+                    raise RuntimeError('自定义 M2M100 模型文件不完整')
+                return
+            if not is_installed(self.model_path):
+                try:
+                    self.model_path.resolve().relative_to((APP_ROOT / 'models').resolve())
+                except ValueError:
+                    install(self.model_path, progress=progress, cancel=self._cancel_install)
+                else:
+                    # Packaged files may receive new timestamps on installation.
+                    # Verify them without rewriting a signed/read-only Mac app.
+                    progress('正在校验内置小模型…')
+                    verify(self.model_path)
 
     @property
     def status(self) -> str:
@@ -209,6 +242,7 @@ class M2M100Engine:
 
     def close(self) -> None:
         self._closed = True
+        self._cancel_install.set()
         # A running inference releases its own weights in finally. Closing the
         # window and applying settings must never wait on a long translation.
         if self._lock.acquire(blocking=False):

@@ -7,12 +7,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from dota2_map_assistant.local_model_install import install as _install, MODEL_FOLDER, NATIVE_FIXTURE
+from dota2_map_assistant.lightweight_model_install import install as _install, MODEL_FOLDER
 
 
 def install(destination: Path, verify_only: bool = False, *, native_fixture=False) -> None:
-    _install(destination, verify_only, progress=lambda message: print(message, flush=True),
-             specification=NATIVE_FIXTURE if native_fixture else None)
+    _install(destination, verify_only, progress=lambda message: print(message, flush=True))
     print('Local offline model verified.', flush=True)
 
 
@@ -26,7 +25,9 @@ if __name__ == '__main__':
     parser.add_argument('--native-fixture', action='store_true', help=argparse.SUPPRESS)
     options = parser.parse_args()
     try:
-        destination=options.model_dir or ROOT / 'models' / (NATIVE_FIXTURE['folder'] if options.native_fixture else MODEL_FOLDER)
+        # Retain --native-fixture for older CI callers. Every build verifies the
+        # same production M2M100 weights used by the installed application.
+        destination=options.model_dir or ROOT / 'models' / MODEL_FOLDER
         install(destination.resolve(), options.verify_only, native_fixture=options.native_fixture)
     except Exception as exc:
         print(str(exc), file=sys.stderr)

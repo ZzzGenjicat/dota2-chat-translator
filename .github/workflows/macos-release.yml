@@ -42,8 +42,7 @@ jobs:
         run: python -u -X utf8 tools/run_tests.py
       - name: Prepare and verify pinned offline model
         run: |
-          python tools/install_offline_model.py --native-fixture
-          python tools/install_llama_runtime.py
+          python tools/install_offline_model.py
       - name: Install verified installer compiler
         run: ./tools/install_inno_setup.ps1
       - name: Build and test relocated app, installation, reinstallation and uninstall
@@ -97,11 +96,10 @@ jobs:
         run: python -u -X utf8 tools/run_tests.py
       - name: Prepare and verify pinned offline model
         run: |
-          python tools/install_offline_model.py --native-fixture
-          python tools/install_llama_runtime.py
+          python tools/install_offline_model.py
       - name: Test source with remote connections blocked
         env:
-          DOTA2_TRANSLATOR_SMOKE_MODEL: ${{ github.workspace }}/models/hy-mt2-1.8b-q4/Hy-MT2-1.8B-Q4_K_M.gguf
+          DOTA2_TRANSLATOR_SMOKE_MODEL: ${{ github.workspace }}/models/m2m100-418m-ct2-int8
         run: python -X utf8 run.py --self-test --report build/source-smoke.json
       - name: Build and test relocated native app, then make DMG
         run: python tools/build_macos.py --arch '${{ matrix.arch }}'

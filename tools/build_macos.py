@@ -13,9 +13,8 @@ import tempfile
 import time
 import tomllib
 
-from install_offline_model import install
+from install_offline_model import install, MODEL_FOLDER
 from package_licenses import collect_licenses
-from native_model_fixture import smoke_environment, MODEL_FOLDER
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,7 +37,7 @@ def build(expected_arch: str) -> None:
     import tkinter as tk
     test_root = tk.Tk()
     test_root.destroy()
-    install(ROOT / 'models' / MODEL_FOLDER, verify_only=True, native_fixture=True)
+    install(ROOT / 'models' / MODEL_FOLDER, verify_only=True)
     collect_licenses(ROOT)
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm',
                     '--distpath', str(ROOT / 'dist'), '--workpath', str(ROOT / 'build' / 'pyinstaller'),
@@ -54,12 +53,13 @@ def build(expected_arch: str) -> None:
     import os
     clean_env = dict(os.environ)
     clean_env.pop('PYTHONPATH', None)
-    for key in ('DOTA2_TRANSLATOR_DATA_DIR', 'DOTA2_TRANSLATOR_STEAM_DIR', 'DOTA2_TRANSLATOR_DOTA_DIR'):
-        clean_env.pop(key, None)
+    for key in list(clean_env):
+        if key.startswith('DOTA2_TRANSLATOR_'):
+            clean_env.pop(key)
     with tempfile.TemporaryDirectory(prefix='移动后 with spaces ') as moved:
         moved_app = Path(moved) / 'Dota2ChatTranslator.app'
         shutil.copytree(app, moved_app, symlinks=True)
-        clean_env = smoke_environment(clean_env, Path(moved) / 'model-cache')
+        clean_env['DOTA2_TRANSLATOR_DATA_DIR'] = str(Path(moved) / 'user-data')
         subprocess.run([str(moved_app / 'Contents' / 'MacOS' / 'Dota2ChatTranslator'),
                         '--self-test', '--report', str(report)], cwd=moved, env=clean_env,
                        check=True, timeout=300)

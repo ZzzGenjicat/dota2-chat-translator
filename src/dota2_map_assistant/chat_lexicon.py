@@ -5,6 +5,7 @@ import hashlib
 from collections import Counter
 import json
 import re
+from string import Formatter
 from pathlib import Path
 from .app_paths import resource_root
 
@@ -82,6 +83,7 @@ class ChatLexicon:
             self._hero_ultimate = re.compile('(?:' + ('|'.join(re.escape(hero) for hero in sorted(zh_heroes, key=len, reverse=True)) or r'(?!)')
                 + r')(?:的)?大(?:招)?(?!衣|学|哥|家|鱼|地|灾|雨|事)', re.I)
             self._prepare_russian_templates()
+            self._prepare_chat_templates(data)
         except (OSError, KeyError, TypeError, ValueError) as exc:
             raise RuntimeError(f'聊天词库无法加载：{path.name}：{exc}') from exc
 
@@ -406,9 +408,69 @@ class ChatLexicon:
             result = self._terms[source].get(key)
         if result is None and source == 'ru':
             result = self._russian_message(key)
+        if result is None:
+            result = self._chat_template(key, source)
         if result is not None:
             suffix = re.search(r'[.!！?？]+$', text.rstrip())
             return result + (suffix.group().replace('！', '!').replace('？', '?') if suffix else '')
+        return None
+
+    def _prepare_chat_templates(self, data: dict) -> None:
+        """Compile editable whole-message forms using only controlled slots."""
+        self._chat_templates = {'zh': [], 'ru': []}
+        self._slot_values = {language: {'hero': {}, 'item': {}} for language in ('zh', 'ru')}
+        for term in data['terms']:
+            kind = term.get('kind')
+            if kind not in ('hero', 'item'):
+                continue
+            for language in self._directions(term):
+                other = 'ru' if language == 'zh' else 'zh'
+                for alias in (term[language], *term.get(language + '_aliases', [])):
+                    self._slot_values[language][kind][self._key(alias)] = term[other]
+        templates = data.get('templates', [])
+        if not isinstance(templates, list):
+            raise ValueError('短句模板必须是列表')
+        formatter = Formatter()
+        for template in templates:
+            slots = template['slots']
+            if not isinstance(slots, dict) or not slots or any(
+                    not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z_]*', name)
+                    or kind not in ('number', 'hero', 'item') for name, kind in slots.items()):
+                raise ValueError('短句模板只允许数字、英雄和物品参数')
+            for language in ('zh', 'ru'):
+                fields = list(formatter.parse(template[language]))
+                if {field for _, field, _, _ in fields if field is not None} != set(slots) or any(
+                        field is not None and (spec or conversion) for _, field, spec, conversion in fields):
+                    raise ValueError('双语模板必须使用相同的参数，且不允许格式表达式')
+            for language in self._directions(template):
+                pattern = []
+                seen = set()
+                for literal, field, _, _ in formatter.parse(self._key(template[language])):
+                    pattern.append(re.escape(literal).replace(r'\ ', r'\s+'))
+                    if field is None:
+                        continue
+                    if field in seen:
+                        pattern.append(f'(?P={field})')
+                        continue
+                    seen.add(field)
+                    kind = slots[field]
+                    values = self._slot_values[language].get(kind, {})
+                    value_pattern = r'[0-9]{1,4}' if kind == 'number' else (
+                        '|'.join(re.escape(value) for value in sorted(values, key=len, reverse=True)) or r'(?!)')
+                    pattern.append(f'(?P<{field}>{value_pattern})')
+                other = 'ru' if language == 'zh' else 'zh'
+                self._chat_templates[language].append((re.compile(''.join(pattern), re.I),
+                                                       template[other], slots))
+
+    def _chat_template(self, key: str, source: str) -> str | None:
+        for pattern, target, slots in self._chat_templates[source]:
+            match = pattern.fullmatch(key)
+            if match is None:
+                continue
+            values = {name: value if slots[name] == 'number' else
+                      self._slot_values[source][slots[name]][self._key(value)]
+                      for name, value in match.groupdict().items()}
+            return target.format_map(values)
         return None
 
     @staticmethod

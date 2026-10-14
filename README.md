@@ -1,51 +1,44 @@
 # Dota 2 本地聊天翻译
 
-把 Dota 2 里的俄语聊天译成中文，也能把你输入的中文译成俄语，复制后发到游戏中。翻译在本机完成，支持 Windows 和 Mac；词库优先保留原话语气、粗话强度和常见游戏口语，复杂黑话仍可能误译。
+把 Dota 2 的俄语聊天译成中文，也能把输入的中文译成俄语，复制后发到游戏。支持 Windows 和 Mac，翻译全程离线，不使用屏幕识别。
 
-本分支是使用 Hy-MT2 本地模型的独立预览版。复杂黑话、长句和粗话引用仍可能误译，需要核对；正式源码保留原有模型。
+**0.4.2 回到轻量版：内置约 494MB 的 M2M100 INT8 模型，预设词句优先，其他消息由小模型翻译。** 不再自动下载或加载 17GB 模型。旧大模型文件保留，不自动删除。
 
 ## 下载和安装
 
-[预览版安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.4.1)
+[轻量版安装包下载页](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/tag/v0.4.2)
 
 | 电脑 | 下载 | 安装方法 |
 | --- | --- | --- |
-| Windows 10/11，64 位 | [Windows 安装版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.1/Dota2ChatTranslator-0.4.1-windows-x64-setup.exe) | 双击后点“安装” |
-| Apple 芯片 Mac | [Apple 芯片版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.1/Dota2ChatTranslator-0.4.1-macos-arm64.dmg) | 打开 DMG，把程序拖到“应用程序” |
-| Intel Mac | [Intel 版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.1/Dota2ChatTranslator-0.4.1-macos-x86_64.dmg) | 打开 DMG，把程序拖到“应用程序” |
+| Windows 10/11，64 位 | [Windows 安装版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.2/Dota2ChatTranslator-0.4.2-windows-x64-setup.exe) | 双击后点“安装” |
+| Apple 芯片 Mac | [Apple 芯片版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.2/Dota2ChatTranslator-0.4.2-macos-arm64.dmg) | 打开后拖到“应用程序” |
+| Intel Mac | [Intel 版](https://github.com/ZzzGenjicat/dota2-chat-translator/releases/download/v0.4.2/Dota2ChatTranslator-0.4.2-macos-x86_64.dmg) | 打开后拖到“应用程序” |
 
-安装包包含运行环境，不用安装 Python。首次打开会下载并校验一次约 17 GB 的模型，之后翻译全程离线。需要至少 32 GB 总内存和 22 GB 当前可用内存；Mac 需要 macOS 14 或更新版本。在苹果菜单“关于本机”查看芯片类型。Windows ARM 暂不支持。
+安装包已包含模型和运行环境，无需安装 Python，也无需首次下载模型。Mac 需要 macOS 14 或更新版本；在苹果菜单“关于本机”查看芯片类型。Windows ARM 暂不支持。
 
-**普通用户下载 EXE 或 DMG，不要点 Download ZIP 或 Source code。** 校验文件无需下载。
+普通用户下载 EXE 或 DMG；Download ZIP 和 Source code 是源码，校验文件无需下载。
 
 ## 使用
 
-1. 打开程序，首次按提示安装一次游戏直读配置，然后重启 Dota 2。找不到游戏时点击“选择目录”。
-2. 点击“开始抓取”，俄语聊天会显示中文译文。每次打开都会自动检查配置，已安装后无需重复点击安装。选人和赛后聊天目前可能漏收，尚未解决；程序不使用屏幕识别。
-3. 下方输入中文，自动译成俄语；点击“复制俄语”，在游戏中粘贴发送。Windows 用 Ctrl+V，Mac 用 Command+V。
+1. 打开程序，首次按提示安装一次游戏直读配置，然后重启 Dota 2。找不到游戏时点击“选择目录”。每次打开都会检查配置，已装好无需重复安装。
+2. 点击“开始抓取”，收到的俄语聊天会显示中文译文。
+3. 下方输入中文，自动译成俄语；点击“复制俄语”，粘贴到游戏发送。
 
-模型会自动预热，无需每次手动点击。默认使用 2 个 CPU 线程，空闲 3 分钟释放模型；“更多设置”可调整显示、线程数和清空缓存。
+预设库包含 181 组双语短句、162 个术语和 14 个带英雄、装备或数字的模板。命中预设直接返回，缓存避免重复翻译；复杂黑话、自由长句、否定和引用仍可能误译。选人和赛后聊天漏收尚未解决。
 
-本版本暂未取得系统认可的发布签名。首次被拦截时，Windows 查看该文件“更多信息 → 仍要运行”；Mac 尝试打开一次后，查看“系统设置 → 隐私与安全性 → 仍要打开”。不需要关闭系统整体保护。
+默认使用 2 个 CPU 线程、不使用 GPU，空闲 3 分钟释放模型。Windows 后台资源测试中模型进程内存峰值约 0.6GB；实际占用和速度随电脑、消息长度及系统负载变化，Mac 尚未进行同等资源实测。
 
-[600 条前后翻译评测与逐句结果](eval/chat600/results/report.md)：模拟聊天辅助评分中，可用结果由 242/600 提高到 335/600；中文长句转俄语仍不稳定。
+本版本暂未取得系统认可的发布签名。首次被拦截时，Windows 查看该文件“更多信息 → 仍要运行”；Mac 尝试打开一次后，查看“系统设置 → 隐私与安全性 → 仍要打开”。无需关闭系统整体保护。
 
 ## 本地模型安装
 
-源码开发版使用 **Hy-MT2 30B-A3B Q4** 本地模型，参考最近几条聊天理解当前句子。模型下载约 17 GB，运行约占 17 GB 内存，需要至少 32 GB 总内存和 22 GB 当前可用内存。它仍会误解省略、错字和复杂黑话；以下方法用于源码试用，暂不作为正式版本推荐。
-
-先安装官方 Python 3.12（含 Tk；Windows 选择 64 位），再安装一次：
+以下仅供源码运行。先安装官方 Python 3.12（含 Tk；Windows 选择 64 位），再安装一次：
 
 - Windows：运行 `install_offline.ps1`，完成后双击 `launch_app.vbs`。可用 `-PythonPath` 指定 Python 路径。
 - Mac：双击 `install_offline.command`，完成后双击 `launch_app.command`。
 
-只下载并安装模型，也可运行：
+仅安装小模型可运行 `python tools/install_offline_model.py`。源码安装阶段需要联网下载依赖和模型，安装完成后翻译全程离线。
 
-```console
-python tools/install_offline_model.py
-python tools/install_llama_runtime.py
-```
-
-源码安装阶段需要联网下载依赖和模型，安装完成后翻译全程离线。
+预设内容保存在[源码词库](data/dota_chat_lexicon.json)，修改后重新打包即可更新安装版。已发布的 0.4.1 大模型预览源码单独保留在 `codex/context-local-model` 分支。
 
 [模型来源与许可](packaging/MODEL_NOTICE.txt)

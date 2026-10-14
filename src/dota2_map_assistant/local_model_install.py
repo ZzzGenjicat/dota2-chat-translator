@@ -47,15 +47,21 @@ def sample_fingerprint(path: Path) -> str:
     return digest.hexdigest()
 
 
-def is_installed(destination: Path) -> bool:
+def is_installed(destination: Path, *, specification: dict | None = None) -> bool:
+    repository, revision, files = REPOSITORY, REVISION, FILES
+    quantization = 'Q4_K_M'
+    if specification is not None:
+        repository, revision, files = (specification[key] for key in ('repository', 'revision', 'files'))
+        quantization = specification.get('quantization', quantization)
     try:
         manifest_path = destination / 'manifest.json'
         if manifest_path.stat().st_size > 256 * 1024:
             return False
         receipt = json.loads(manifest_path.read_text(encoding='utf-8'))
-        if receipt.get('revision') != REVISION or receipt.get('repository') != REPOSITORY:
+        if (receipt.get('revision') != revision or receipt.get('repository') != repository
+                or receipt.get('quantization') != quantization):
             return False
-        for name, (size, digest) in FILES.items():
+        for name, (size, digest) in files.items():
             stat = (destination / name).stat()
             record = receipt['files'][name]
             if not (stat.st_size == record['size'] == size and record['sha256'] == digest
@@ -116,8 +122,10 @@ def download_opener():
 def install(destination: Path, verify_only=False, *, progress=lambda message: None,
             cancel: threading.Event | None = None, specification: dict | None = None) -> None:
     repository, revision, files = REPOSITORY, REVISION, FILES
+    quantization = 'Q4_K_M'
     if specification is not None:
         repository, revision, files = (specification[key] for key in ('repository', 'revision', 'files'))
+        quantization = specification.get('quantization', quantization)
     destination.mkdir(parents=True, exist_ok=True)
     for index, (name, (size, digest)) in enumerate(files.items(), 1):
         target = destination / name
@@ -129,7 +137,7 @@ def install(destination: Path, verify_only=False, *, progress=lambda message: No
                               target, size, digest,
                               progress=lambda message: progress(f'[{index}/{len(files)}] {message}'), cancel=cancel)
     manifest = {'repository': repository,
-                'revision': revision, 'quantization': 'Q4_K_M', 'files': {
+                'revision': revision, 'quantization': quantization, 'files': {
                     name: {'size': size, 'sha256': digest, 'mtime_ns': (destination / name).stat().st_mtime_ns,
                            'sample_sha256': sample_fingerprint(destination / name)}
                     for name, (size, digest) in files.items()}}

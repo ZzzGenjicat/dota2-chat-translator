@@ -4,13 +4,13 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path, PureWindowsPath
 
-DEFAULT_OFFLINE_MODEL = 'models/hy-mt2-30b-a3b-q4'
+DEFAULT_OFFLINE_MODEL = 'models/m2m100-418m-ct2-int8'
 
 
 def _model_path(value: object) -> str:
     text = str(value or DEFAULT_OFFLINE_MODEL)
     old = PureWindowsPath(text)
-    if old.name == 'm2m100-418m-ct2-int8' and old.parent.name == 'models':
+    if old.name.startswith(('hy-mt2-', 'Hy-MT2-')):
         return DEFAULT_OFFLINE_MODEL
     return text
 
