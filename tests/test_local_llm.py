@@ -363,6 +363,71 @@ class LocalLLMTests(unittest.TestCase):
             complete.assert_called_once()
         e.close()
 
+    def test_long_chinese_chat_can_finish_beyond_the_old_128_token_limit(self):
+        m = self.module()
+        text = ('我们中路已经掉了两个塔，对面大哥正在打肉山，你们别再一个人往河道跑。'
+                '辅助先在高地插眼，再买两个真眼，把我们野区的视野清掉。'
+                '我还有四十秒才能复活，没有买活的钱，你们先守住高地，等我起来一起打。'
+                '这波千万别追出去，我们先把兵线清完，等敌人的黑皇杖时间结束再用大招，'
+                '如果他们去下路带线，就一起传送过去抓人，打完赶紧回基地补状态。')
+        complete = ('У нас на миде упали две башни. Их керри бьёт Рошана. Не бегайте по реке по одному. '
+                    'Поставьте варды на хг, купите две сентри и уберите их вижен в нашем лесу. '
+                    'Мне ещё сорок секунд до респа, денег на байбек нет. Дефайте хг и ждите меня. '
+                    'Не гонитесь за ними, сначала отпушьте линии. Дайте ульты после их БКБ. '
+                    'Если пойдут пушить бот, тпшнитесь вместе и поймайте их, потом сразу на базу.')
+        e = m.LocalLLMEngine()
+        self.addCleanup(e.close)
+        # The old decoder exhausts its cap after 128 tokens; the complete
+        # response needs 230. Only the costly native inference is substituted.
+        def native_response(endpoint, payload=None, **kwargs):
+            if endpoint == '/tokenize':
+                return {'tokens': list(range(160 if payload['content'] == text else 298))}
+            self.assertEqual(endpoint, '/v1/chat/completions')
+            enough = payload['max_tokens'] >= 230
+            return {'choices': [{'finish_reason': 'stop' if enough else 'length',
+                                 'message': {'content': complete if enough else complete[:160]}}]}
+        with patch.object(e, '_load'), patch.object(e, '_request', side_effect=native_response):
+            try:
+                result = e.translate_message(text, 'zh', 'ru')
+            except ValueError as exc:
+                self.fail(f'A complete long translation must be accepted: {exc}')
+            self.assertEqual(result, complete)
+
+    def test_long_decoder_has_enough_time_without_increasing_the_context_window(self):
+        m = self.module()
+        text = '请等我们复活以后再一起防守。' * 20
+        e = m.LocalLLMEngine()
+        self.addCleanup(e.close)
+        def native_response(endpoint, payload=None, **kwargs):
+            if endpoint == '/tokenize':
+                return {'tokens': list(range(240 if payload['content'] == text else 1300))}
+            # 500 generated tokens still fit in a 2048 token context, but
+            # require more than the former 45 seconds on a CPU at 6 tokens/s.
+            enough = payload['max_tokens'] >= 500 and kwargs.get('timeout', 45) >= 84
+            self.assertLessEqual(1300 + payload['max_tokens'] + 128, 2048)
+            return {'choices': [{'finish_reason': 'stop' if enough else 'length',
+                                 'message': {'content': 'Ждите нашего респа, потом дефаем вместе.'}}]}
+        with patch.object(e, '_load'), patch.object(e, '_request', side_effect=native_response):
+            try:
+                result = e.translate_message(text, 'zh', 'ru')
+            except ValueError as exc:
+                self.fail(f'A long translation must have sufficient CPU time: {exc}')
+            self.assertEqual(result, 'Ждите нашего респа, потом дефаем вместе.')
+        args = e.server_command(12345)
+        self.assertEqual(args[args.index('--ctx-size') + 1], '2048')
+
+    def test_long_chat_is_not_returned_as_complete_if_the_decoder_still_runs_out(self):
+        m = self.module()
+        e = m.LocalLLMEngine()
+        self.addCleanup(e.close)
+        def native_response(endpoint, payload=None, **kwargs):
+            if endpoint == '/tokenize':
+                return {'tokens': list(range(100))}
+            return {'choices': [{'finish_reason': 'length', 'message': {'content': 'Обрезанная фраза'}}]}
+        with patch.object(e, '_load'), patch.object(e, '_request', side_effect=native_response):
+            with self.assertRaisesRegex(ValueError, '未完成'):
+                e.translate_message('请把整段消息都翻译完，不要漏掉后面的内容。', 'zh', 'ru')
+
     def test_hymt_grammar_requires_target_swear_without_an_appended_placeholder(self):
         m=self.module()
         grammar=m.profanity_grammar({'[[DOTA_WORD_0]]':'傻逼'},canonical=True)
@@ -373,6 +438,54 @@ class LocalLLMTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'粗话'):
                 e.translate_message('ты долбоёб, а не саппорт','ru','zh')
         e.close()
+
+    def test_russian_swears_can_use_grammatical_forms_without_fixed_noun_markers(self):
+        m = self.module(); e = m.LocalLLMEngine()
+        self.addCleanup(e.close)
+        for text, output in (('这波不算傻逼操作。', 'Это не долбоёбский мув.'),
+                             ('这狗屎碰撞体积。', 'Эта говняная коллизия.'),
+                             ('那个菜逼没有BKB。', 'У этого ебаного нуба нет БКБ.'),
+                             ('你们都滚你妈的。', 'Идите все нахуй.'),
+                             ('这波不算傻逼操作。', 'Это не долбоебский мув.'),
+                             ('别吹牛逼。', 'Не выебывайся.')):
+            with self.subTest(text=text), patch.object(e, '_load'), patch.object(e, '_complete', return_value=output) as complete:
+                self.assertEqual(e.translate_message(text, 'zh', 'ru'), output)
+                self.assertTrue(complete.call_args.kwargs['canonical'])
+                self.assertNotIn('DOTA_WORD', complete.call_args.args[0][0]['content'])
+
+    def test_russian_inflections_cannot_hide_missing_or_added_abuse(self):
+        m = self.module(); e = m.LocalLLMEngine()
+        self.addCleanup(e.close)
+        for output in ('Это обычный мув.', 'Это долбоёбский мув, долбоёб.'):
+            with self.subTest(output=output), patch.object(e, '_load'), patch.object(e, '_complete', return_value=output):
+                with self.assertRaisesRegex(ValueError, '粗话'):
+                    e.translate_message('这波不算傻逼操作。', 'zh', 'ru')
+
+    def test_vulgar_idiom_can_reorder_its_verb_without_blocking_completion(self):
+        m = self.module(); e = m.LocalLLMEngine()
+        self.addCleanup(e.close)
+        text = 'Не еби мне мозг вопросами, просто слушай.'
+        for output in ('别他妈用问题烦我，听着就行。', '别他妈的用问题烦我，听着就行。'):
+            with self.subTest(output=output), patch.object(e, '_load'), patch.object(e, '_complete', return_value=output) as complete:
+                self.assertEqual(e.translate_message(text, 'ru', 'zh'), output)
+                self.assertEqual(list(complete.call_args.args[1].values()), ['他妈的'])
+                self.assertIn('别他妈烦我', complete.call_args.args[0][0]['content'])
+
+    def test_vulgar_idiom_reordering_cannot_delete_or_repeat_the_swear(self):
+        m = self.module(); e = m.LocalLLMEngine()
+        self.addCleanup(e.close)
+        for output in ('别用问题烦我，听着就行。', '别他妈用问题烦我，他妈的听着就行。'):
+            with self.subTest(output=output), patch.object(e, '_load'), patch.object(e, '_complete', return_value=output):
+                with self.assertRaisesRegex(ValueError, '粗话'):
+                    e.translate_message('Не еби мне мозг вопросами, просто слушай.', 'ru', 'zh')
+
+    def test_short_swear_form_does_not_count_an_ordinary_mother_reference(self):
+        m = self.module(); e = m.LocalLLMEngine()
+        self.addCleanup(e.close)
+        text = 'Блять, его мама просит сначала дефать.'
+        for output in ('他妈的，他妈妈说先守家。', '他妈，他妈妈说先守家。'):
+            with self.subTest(output=output), patch.object(e, '_load'), patch.object(e, '_complete', return_value=output):
+                self.assertEqual(e.translate_message(text, 'ru', 'zh'), output)
 
     def test_expected_swear_cannot_be_hidden_inside_an_added_command(self):
         m=self.module(); e=m.LocalLLMEngine()

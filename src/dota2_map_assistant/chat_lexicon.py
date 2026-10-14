@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections import Counter
 import json
 import re
 from pathlib import Path
@@ -18,10 +19,24 @@ class ChatLexicon:
             if data.get('schema_version') != 1:
                 raise ValueError('词库版本不受支持')
             self.fingerprint = hashlib.sha256(raw).hexdigest()[:16]
+            self._ru_forms = data.get('ru_profanity_forms', {})
+            self._zh_forms = data.get('zh_profanity_forms', {})
+            if any(not isinstance(forms, dict) or any(
+                    not isinstance(key, str) or not isinstance(values, list) or
+                    any(not isinstance(value, str) or not value or '\n' in value for value in values)
+                    for key, values in forms.items()) for forms in (self._ru_forms, self._zh_forms)):
+                raise ValueError('粗话词形必须为词语与词形列表')
+            self._anchors = data.get('profanity_anchors', {})
+            if not isinstance(self._anchors, dict) or any(
+                    language not in ('zh', 'ru') or not isinstance(anchors, dict) or any(
+                    not isinstance(key, str) or not key or not isinstance(value, str) or not value or '\n' in value
+                    for key, value in anchors.items()) for language, anchors in self._anchors.items()):
+                raise ValueError('粗话约束必须为对应语言的粗话词语')
             self._phrases = {'zh': {}, 'ru': {}}
             self._terms = {'zh': {}, 'ru': {}}
             self._spans = {'zh': {}, 'ru': {}}
             self._heroes: dict[str, str] = {}
+            zh_heroes = set()
             self._profanity = {'zh': {}, 'ru': {}}
             self._english_terms = {}
             self._fixed_swears = {'zh': set(), 'ru': set()}
@@ -54,19 +69,18 @@ class ChatLexicon:
                             self._spans[language].setdefault(key, term[other])
                         if language == 'ru' and term.get('kind') == 'hero':
                             self._heroes[key] = term[other]
+                        elif language == 'zh' and term.get('kind') == 'hero':
+                            zh_heroes.add(key)
             self._patterns = {}
             for language, terms in self._spans.items():
                 patterns = []
                 for term in sorted(terms, key=len, reverse=True):
                     if language == 'zh' and len(term) == 1:
                         continue  # 眼睛、粉丝、香烟 must not become game terminology.
-                    escaped = re.escape(term).replace(r'\ ', r'\s+')
-                    if language == 'zh':
-                        patterns.append(escaped if re.search(r'[\u4e00-\u9fff]', term)
-                                        else rf'(?<![A-Za-z0-9_]){escaped}(?![A-Za-z0-9_])')
-                    else:
-                        patterns.append(rf'(?<!\w){escaped}(?!\w)')
+                    patterns.append(self._span_pattern(term, language))
                 self._patterns[language] = re.compile('|'.join(patterns) or r'(?!)', re.IGNORECASE)
+            self._hero_ultimate = re.compile('(?:' + ('|'.join(re.escape(hero) for hero in sorted(zh_heroes, key=len, reverse=True)) or r'(?!)')
+                + r')(?:的)?大(?:招)?(?!衣|学|哥|家|鱼|地|灾|雨|事)', re.I)
             self._prepare_russian_templates()
         except (OSError, KeyError, TypeError, ValueError) as exc:
             raise RuntimeError(f'聊天词库无法加载：{path.name}：{exc}') from exc
@@ -75,9 +89,26 @@ class ChatLexicon:
     def _key(text: str) -> str:
         return re.sub(r'\s+', ' ', text.strip()).casefold().rstrip('。.!！?？')
 
+    @staticmethod
+    def _span_pattern(term: str, source: str) -> str:
+        escaped = re.escape(term).replace(r'\ ', r'\s+')
+        if source == 'ru':
+            return rf'(?<!\w){escaped}(?!\w)'
+        if not re.search(r'[\u4e00-\u9fff]', term):
+            return rf'(?<![A-Za-z0-9_]){escaped}(?![A-Za-z0-9_])'
+        if term == '妈的':
+            escaped = r'(?<![\u4e00-\u9fff])' + escaped
+        if term.endswith('操'):
+            escaped += r'(?!作|控|纵|练|场|持|办|盘|劳|守|弄)'
+        if term.endswith('雾'):
+            escaped += r'(?!化|灯|机|器)'
+        if term == '点人':
+            escaped += r'(?!头|数|口)'
+        return escaped
+
     def hints(self, text: str, source: str, history: tuple[str, ...] = ()) -> list[str]:
         """Relevant term hints; never substitute/split grammar-bearing phrases."""
-        hints = []
+        hints = self._game_phrases(text, source, history)
         if source == 'zh' and re.search(r'这(?:波|把)我的', text) and re.search(r'按错|失误|错了|打错', text):
             hints.append('这波我的/这把我的 = мой косяк')
         for term, meaning in sorted(self._terms[source].items(), key=lambda item: -len(item[0])):
@@ -85,9 +116,27 @@ class ChatLexicon:
                 continue
             if term in self._profanity[source]:
                 continue  # These are preserved by the constrained decoder.
-            pattern = re.escape(term) if source == 'zh' else rf'(?<!\w){re.escape(term)}(?!\w)'
+            pattern = self._span_pattern(term, source)
             if not re.search(pattern, text, re.IGNORECASE):
                 continue
+            if source == 'ru':
+                # These short slang words also have literal non-game meanings.
+                lower = text.casefold()
+                if term in ('обс', 'обса', 'обсов', 'obs', 'observer') and re.search(
+                        r'стрим|запис[а-яё]*\s+видео|программ[а-яё]*|трансляц', lower):
+                    meaning = 'OBS 录制/直播软件'
+                elif term in ('респ', 'респа', 'респавн', 'респавна', 'resp', 'respawn') and re.search(
+                        rf'(?<!\w)(?:{re.escape(term)}\s+(?:рош[а-яё]*|рун[а-яё]*|крип[а-яё]*|нейтрал[а-яё]*|кемп[а-яё]*|кэмп[а-яё]*)|'
+                        rf'(?:рош[а-яё]*|рун[а-яё]*|крип[а-яё]*|нейтрал[а-яё]*|кемп[а-яё]*|кэмп[а-яё]*)\s+{re.escape(term)})(?!\w)', lower):
+                    meaning = '刷新'
+                elif term in ('смок', 'смока', 'смоках', 'smoke'):
+                    meaning = '诡计之雾'
+                elif term in ('сейв', 'сейва', 'сейвом', 'save') and re.search(r'файл|проект|документ|реплей|запис[а-яё]*', lower):
+                    meaning = '保存'
+                elif term in ('стак', 'стаки', 'stack') and re.search(r'пати|игрок[а-яё]*|впятером|вдвоём', lower):
+                    meaning = '组排队伍'
+                elif term in ('кура', 'курой', 'куру', 'куре') and re.search(r'ужин|обед|жарен|варен|суп|тарелк', lower):
+                    meaning = '鸡肉'
             if source == 'ru' and term.startswith('софт'):
                 literal = any(self._literal_software(text, match.start(), match.end())
                               for match in re.finditer(pattern, text, re.I))
@@ -111,35 +160,173 @@ class ChatLexicon:
                     break
         return hints[:12]
 
-    def protect_profanity(self, text: str, source: str) -> tuple[str, dict[str, str]]:
-        """Keep known offensive words intact while translating the whole grammar."""
+    def _game_phrases(self, text: str, source: str, history: tuple[str, ...]) -> list[str]:
+        """A few recurring game constructions, without replacing sentence parts."""
+        hints = []
+        if source == 'zh':
+            if re.search(r'别误会(?:我|你|他|她|它)(?:是|在|要|想|会|没|不)', text):
+                hints.append('别误会 = не думай, что')
+            if self._hero_ultimate.search(text):
+                hints.append('大 = ульт')
+            digits = dict(zip('零一二三四五六七八九', '0123456789'))
+            for match in re.finditer(r'([一二三四五六七八九\d])换([一二三四五六七八九\d])', text):
+                first, second = (digits.get(match[n], match[n]) for n in (1, 2))
+                hints.append(f'{match.group()} = размен {first} на {second}')
+            if re.search(r'白交大|(?:不|别|先|再|乱)交大(?!学)|交大(?:了|招|给|之前|以后)', text):
+                hints.append('交大 = использовать ульт')
+            for match in re.finditer(r'(?:还(?:有|要|得)?\s*)?(\d+)\s*秒(?:后|才能|才)?(?:自然)?复活', text):
+                hints.append(f'{match.group()} = респ через {match[1]} сек')
+            # Single-character item nicknames are ambiguous outside these
+            # constructions; never turn 粉丝/粉底/羊肉/weather into game items.
+            if re.search(r'(?:买|带|撒|补)(?:了|个|一[个包])?粉(?!底|色|丝|笔|末|状)|粉(?:没带|没买|用完|撒了)', text):
+                hints.append('粉 = даст')
+            if re.search(r'(?:买|带|用|开)(?:个|一个)?雾(?!化|灯|机|器)|雾(?:我|你|他|我们|你们)?买', text):
+                hints.append('雾 = смок')
+            if re.search(r'(?:接羊|先羊)(?!肉|排|腿|毛|奶|汤|皮|头|年)|羊(?:他|她|对面|住)', text):
+                hints.append('羊 = хекс')
+            for match in re.finditer(r'(?:刷|刷完|刷会儿|刷一会儿|去刷|打钱刷)三角(?:区)?', text):
+                hints.append(f'{match.group()} = фармить треугольник')
+            if re.search(r'(?:大鱼(?:人)?|斯拉达).*?点灯|点灯.*?(?:大鱼(?:人)?|斯拉达)', text):
+                hints.append('点灯 = дать ульт')
+            return hints
+        if source != 'ru':
+            return hints
+        for match in re.finditer(r'(?<!\w)говно\s*,?\s+а\s+не\s+(\w+)', text, re.I):
+            meaning = self._terms['ru'].get(match[1].casefold())
+            if meaning:
+                if match[1].casefold().startswith('сейв') and re.search(r'файл|проект|документ|реплей', text, re.I):
+                    meaning = '保存'
+                hints.append(f'{match.group()} = 不是{meaning}，是狗屎')
+        if re.search(r'(?<!\w)сало(?!\w)', text, re.I) and re.search(r'мант[а-яё]*|сним[а-яё]*|снят[а-яё]*|диспел[а-яё]*', text, re.I):
+            hints.append('снимать сало = 解除沉默')
+        salve = re.search(r'(?<!\w)(?:салва|фласка)\s+на\s+мне(?!\w)', text, re.I)
+        if salve:
+            hints.append(f'{salve.group()} = 我正在用治疗药膏回血')
+        buyback = r'(?:байбек(?:а|ом)?|bb|бб)'
+        for pattern, meaning in (
+            (rf'{buyback}\s+не\s+(?:жми|нажимай|юзай|используй)', '别使用买活'),
+            (rf'не\s+(?:жми|нажимай|юзай|используй)\s+{buyback}', '别使用买活'),
+            (rf'{buyback}\s+(?:нет|нету)', '没有买活可用'),
+            (rf'(?:нет|нету|без)\s+{buyback}', '没有买活可用'),
+            (rf'{buyback}\s+через\s+(\d+)\s*(?:сек|с\b)', None),
+        ):
+            for match in re.finditer(r'(?<!\w)' + pattern + r'(?!\w)', text, re.I):
+                value = meaning if meaning is not None else f'买活冷却还有{match[1]}秒'
+                hints.append(f'{match.group()} = {value}')
+        level = re.search(r'(?<!\w)(?:шестой\s+(?:взял|апнул)|(?:взял|апнул)\s+шестой)(?!\w)', text, re.I)
+        if level:
+            hints.append(f'{level.group()} = 升到六级')
+            movement = re.search(r'(?<!\w)(?:могу\s+выйти|выйду(?:\s+с\s+линии)?)(?!\w)', text, re.I)
+            if movement:
+                hints.append(f'{movement.group()} = 可以离线游走支援')
+        context = text + '\n' + '\n'.join(history[-3:])
+        finger = re.search(r'(?<!\w)пал(?:ец|ьца|ьцем)(?!\w)', text, re.I)
+        if finger and re.search(r'(?<!\w)(?:лион[а-яё]*|lion)(?!\w)|莱恩', context, re.I) and not re.search(
+                r'болит|слом[а-яё]*|порез[а-яё]*|кров[а-яё]*|травм[а-яё]*', text, re.I):
+            hints.append(f'{finger.group()} = 死亡一指')
+        if re.search(r'(?<!\w)смок[а-яё]*(?!\w)', text, re.I) and re.search(r'(?<!\w)лома[а-яё]*(?!\w)', text, re.I):
+            hints.append('ломать смок = 破雾')
+        if re.search(r'(?<!\w)тащ(?:им|у|ить|ишь|ат)(?!\w)', text, re.I):
+            hints.append('тащить = 带队赢比赛')
+        if re.search(r'(?<!\w)(?:кормить|фидить|фид)[а-яё]*(?!\w)', text, re.I):
+            hints.append('кормить/фидить = 送人头')
+            if re.search(r'(?<!\w)курой(?!\w)', text, re.I):
+                hints.insert(0, 'курой кормить = 送信使')
+        for match in re.finditer(r'(?<!\w)(?:стакни|стакай|стакнуть|стакать)\s+(малый|маленький|большой)(?!\w)', text, re.I):
+            size = '大' if match[1].casefold() == 'большой' else '小'
+            hints.insert(0, f'{match.group()} = 叠{size}野')
+        return hints[:6]
+
+    def _profanity_matches(self, text: str, source: str):
         terms = self._profanity[source]
         alternatives = []
         for term in sorted(terms, key=len, reverse=True):
-            escaped = re.escape(term)
-            alternatives.append(escaped if source == 'zh' else rf'(?<!\w){escaped}(?!\w)')
+            escaped = self._span_pattern(term, source)
+            if source == 'zh' and len(term) == 1:
+                escaped = rf'(?<![\u4e00-\u9fff]){escaped}(?![\u4e00-\u9fff])'
+            alternatives.append(escaped)
         pattern = re.compile('|'.join(alternatives) or r'(?!)', re.I)
+        for match in pattern.finditer(text):
+            key = self._key(match.group())
+            if source == 'ru' and key in ('сука', 'суки', 'суку', 'suka', 'cyka'):
+                before, after = text[:match.start()], text[match.end():]
+                if (re.search(r'(?:игрок|ник|никнейм)\s+$', before, re.I)
+                        or re.match(r'\s+(?:родила|кормит\s+щенков)(?!\w)', after, re.I)):
+                    continue
+            yield match
+
+    def protect_profanity(self, text: str, source: str) -> tuple[str, dict[str, str]]:
+        """Keep offensive spans in their grammatical scope, longest idiom first."""
+        terms = self._profanity[source]
         replacements = {}
-        def protect(match):
+        pieces, start = [], 0
+        for match in self._profanity_matches(text, source):
             marker = f'[[DOTA_WORD_{len(replacements)}]]'
             while marker in text:
                 marker = marker.replace('WORD_', 'WORD_X_')
             meaning = terms[self._key(match.group())]
-            if source == 'ru' and self._key(match.group()) == 'сука' and re.match(r'\s*,', text[match.end():]):
+            if source == 'ru' and self._key(match.group()) in ('сука', 'suka', 'cyka') and re.match(r'\s*,', text[match.end():]):
                 meaning = '他妈的'  # An interjection; "ты сука" remains a noun insult.
+            elif source == 'zh' and self._key(match.group()) == '鸡巴' and re.search(
+                    r'(?:打|开|接|推|守|买|救|奶|补|刷|带)个$', text[:match.start()]) and re.match(
+                    r'团|塔|钱|兵|野|线|肉山|装备|人|队|基地|盾', text[match.end():]):
+                meaning = 'нахуй'  # Rhetorical game action: "какой нахуй файт".
+            elif source == 'zh' and self._key(match.group()) == '鸡巴' and (
+                    not text[:match.start()].strip() or re.search(r'[，,！!。]\s*$', text[:match.start()])) and re.match(
+                    r'\s*[，,！!]', text[match.end():]):
+                meaning = 'блять'
             replacements[marker] = meaning
-            return marker
-        return pattern.sub(protect, text), replacements
+            pieces += [text[start:match.start()], marker]
+            start = match.end()
+        pieces.append(text[start:])
+        return ''.join(pieces), replacements
 
     def profanity_hints(self, text: str, source: str) -> list[str]:
         """Original offensive spans, longest first, for a whole-source prompt."""
-        terms = self._profanity[source]
-        alternatives = [re.escape(term) if source == 'zh' else rf'(?<!\w){re.escape(term)}(?!\w)'
-                        for term in sorted(terms, key=len, reverse=True)]
-        return [match.group() for match in re.finditer('|'.join(alternatives) or r'(?!)', text, re.I)]
+        return [match.group() for match in self._profanity_matches(text, source)]
 
     def is_fixed_swear(self, text: str, source: str) -> bool:
         return self._key(text) in self._fixed_swears[source]
+
+    def profanity_forms(self, language: str) -> dict[str, tuple[str, ...]]:
+        """Explicit morphology, not weaker substitutes or extra insults."""
+        if language not in ('ru', 'zh'):
+            return {}
+        meanings = set(self._profanity['zh' if language == 'ru' else 'ru'].values())
+        meanings.update(self._anchors.get(language, {}).values())
+        explicit = self._ru_forms if language == 'ru' else self._zh_forms
+        result = {}
+        for meaning in meanings:
+            forms = [meaning, *explicit.get(meaning, ())]
+            if language == 'ru':
+                forms += [form.replace('ебан', 'ёбан') for form in forms if 'ебан' in form]
+                forms += [form.replace('ё', 'е') for form in forms if 'ё' in form]
+                forms += [form.replace('нахуй', 'на хуй') for form in forms if 'нахуй' in form]
+                forms += [form[:1].upper() + form[1:] for form in forms]
+            result[meaning] = tuple(dict.fromkeys(forms))
+        return result
+
+    def profanity_constraints(self, replacements: dict[str, str], target: str) -> dict[str, str]:
+        """Constrain the vulgar word, leaving the idiom's verb/order to translation."""
+        anchors = self._anchors.get(target, {})
+        return {marker: anchors.get(meaning, meaning) for marker, meaning in replacements.items()}
+
+    def validate_profanity(self, output: str, replacements: dict[str, str], source: str, target: str) -> None:
+        forms = self.profanity_forms(target)
+        replacements = self.profanity_constraints(replacements, target)
+        vocabulary = set(self._profanity[source].values()) | set(replacements.values())
+        vocabulary = set(self.profanity_constraints({word: word for word in vocabulary}, target).values())
+        canonical = {}
+        for meaning in vocabulary:
+            for form in forms.get(meaning, (meaning,)):
+                canonical[form.casefold()] = meaning
+        pattern = '|'.join(re.escape(word) + (r'(?!妈|咪)' if target == 'zh' and word == '他妈' else '')
+                           for word in sorted(canonical, key=len, reverse=True))
+        if target == 'ru':
+            pattern = r'(?<!\w)(?:' + pattern + r')(?!\w)'
+        rendered = Counter(canonical[match.group().casefold()] for match in re.finditer(pattern or r'(?!)', output, re.I))
+        if rendered != Counter(replacements.values()):
+            raise ValueError('模型遗漏或重复了原文粗话，请重试')
 
     @staticmethod
     def restore_profanity(output: str, replacements: dict[str, str]) -> str:
