@@ -96,6 +96,7 @@ class GsiChatReader:
         self._matchid: str | None = None
         self._seen: set[tuple[object, ...]] = set()
         self._russian_latin_messages = russian_latin_messages()
+        self._chat_lexicon = ChatLexicon()
 
     def read(self, body: bytes | str) -> list[TextObservation]:
         try:
@@ -135,7 +136,8 @@ class GsiChatReader:
                 continue
             self._seen.add(key)
             if text and (_CYRILLIC.search(text)
-                         or ChatLexicon._key(text) in self._russian_latin_messages):
+                         or ChatLexicon._key(text) in self._russian_latin_messages
+                         or self._chat_lexicon.is_russian_latin_command(text)):
                 # GSI lists newest first; reverse ties within the same game second.
                 fresh.append((game_time, -len(fresh), text))
         if len(self._seen) > 5000:

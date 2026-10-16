@@ -9,6 +9,7 @@ import re
 from string import Formatter
 from pathlib import Path
 from .app_paths import resource_root
+from .russian_chat_commands import RussianChatCommands
 
 LEXICON_PATH = resource_root() / 'data' / 'dota_chat_lexicon.json'
 
@@ -28,7 +29,7 @@ def russian_latin_messages(path: Path = LEXICON_PATH) -> frozenset[str]:
                                       for alias in (entry['ru'], *entry.get('ru_aliases', ())))
         aliases = data.get('russian_latin_aliases', ())
         return frozenset(ChatLexicon._key(alias) for alias in aliases
-                         if isinstance(alias, str) and re.fullmatch(r'[A-Za-z0-9 ]+', alias)
+                         if isinstance(alias, str) and re.fullmatch(r'[A-Za-z0-9 ,.!?\-]+', alias)
                          and ChatLexicon._key(alias) in translated)
     except (OSError, UnicodeError, ValueError, TypeError, KeyError, AttributeError):
         return frozenset()
@@ -98,6 +99,26 @@ class ChatLexicon:
                             self._heroes[key] = term[other]
                         elif language == 'zh' and term.get('kind') == 'hero':
                             zh_heroes.add(key)
+            # Search nicknames such as "автобус" belong only to explicit hero
+            # grammar. They must never become standalone or protected spans.
+            self._context_hero_keys: set[str] = set()
+            for term in data['terms']:
+                aliases = term.get('ru_context_aliases', [])
+                if (not isinstance(aliases, list) or any(
+                        not isinstance(alias, str) or not self._key(alias)
+                        or '\n' in alias or '\r' in alias for alias in aliases)
+                        or aliases and (term.get('kind') != 'hero'
+                                        or 'ru' not in self._directions(term))):
+                    raise ValueError('ru_context_aliases 必须为俄语英雄的非空别名列表')
+                for alias in aliases:
+                    key = self._key(alias)
+                    meanings = (self._terms['ru'].get(key), self._phrases['ru'].get(key),
+                                self._heroes.get(key))
+                    if any(meaning is not None and meaning != term['zh'] for meaning in meanings):
+                        raise ValueError(f'英雄语境别名存在歧义：{alias}')
+                    if key not in self._heroes:
+                        self._context_hero_keys.add(key)
+                    self._heroes[key] = term['zh']
             self._patterns = {}
             for language, terms in self._spans.items():
                 patterns = []
@@ -110,6 +131,12 @@ class ChatLexicon:
                 + r')(?:的)?大(?:招)?(?!衣|学|哥|家|鱼|地|灾|雨|事)', re.I)
             self._prepare_russian_templates()
             self._prepare_chat_templates(data)
+            self._russian_commands = RussianChatCommands(self._slot_values['ru']['hero'], self._slot_values['ru']['item'])
+            offensive_ru = set()
+            for entry in (*data['phrases'], *data['terms']):
+                if entry.get('strength', 0) >= 1 and 'ru' in self._directions(entry):
+                    offensive_ru.update((entry['ru'], *entry.get('ru_aliases', ())))
+            self._offensive_ru = re.compile('|'.join(self._span_pattern(word, 'ru') for word in sorted(offensive_ru, key=len, reverse=True)) or r'(?!)', re.I)
         except (OSError, KeyError, TypeError, ValueError) as exc:
             raise RuntimeError(f'聊天词库无法加载：{path.name}：{exc}') from exc
 
@@ -183,6 +210,8 @@ class ChatLexicon:
                 question = '?' if re.match(r'\s*[?？]', text[match.end():]) else ''
                 hints.insert(0, f'{match.group()} = {subjects[subject]}{plural}在挂机{question}')
             for alias, hero in self._heroes.items():
+                if alias in self._context_hero_keys:
+                    continue
                 if re.search(rf'(?<!\w)на\s+{re.escape(alias)}(?!\w)', text, re.I):
                     hints.insert(0, f'на {alias} = 玩{hero}的')
                     break
@@ -313,6 +342,25 @@ class ChatLexicon:
         """Original offensive spans, longest first, for a whole-source prompt."""
         return [match.group() for match in self._profanity_matches(text, source)]
 
+    def validate_no_added_insults(self, original: str, output: str, source: str, target: str) -> None:
+        """Reject newly generated insults in otherwise neutral incoming chat."""
+        if source != 'ru' or target != 'zh':
+            return
+        lookalikes = str.maketrans({'e':'е', 'a':'а', 'o':'о', 'x':'х', '1':'и', '0':'о', '@':'а', '*':'я'})
+        signal = re.sub(r'[A-Za-zА-Яа-яЁё01@*]+',
+                        lambda match: match.group().translate(lookalikes) if re.search(r'[А-Яа-яЁё]', match.group()) else match.group(), original)
+        if (self.profanity_hints(signal, 'ru') or self._offensive_ru.search(signal) or re.search(
+                r'(?<!\w)(?:глуп[а-яё]*|тупой|тупая|тупые|дурак[а-яё]*|идиот[а-яё]*|дебил[а-яё]*|'
+                r'blyat|zayebal|pizdec|zayebis)(?!\w)', signal, re.I)):
+            return
+        ambiguous = {'傻瓜', '白痴', '蠢货', '蠢蛋', '智障', '弱智', '废物', '垃圾', '混蛋', '狗东西', '妓女', '婊子', '变态'}
+        strong = [word for word in self.profanity_hints(output, 'zh') if word not in ambiguous]
+        insults = '(?:' + '|'.join(ambiguous) + ')'
+        boundary = r'(?=$|[\s，。！？!?,.:：]|别|快|滚|啊|呀|吧|呢)'
+        addressed = re.search(r'(?:^|[，。！？!?,.:：])\s*' + insults + boundary + r'|(?:你|他|她|你们|他们|队友|中单|辅助)(?:真|可|就|也|还|是|个|一个|群|帮|这|那|都|很|太|纯|十足|完全|简直)*' + insults + boundary, output)
+        if strong or addressed:
+            raise ValueError('模型加入了原文没有的辱骂，原文已保留')
+
     def is_fixed_swear(self, text: str, source: str) -> bool:
         return self._key(text) in self._fixed_swears[source]
 
@@ -436,12 +484,17 @@ class ChatLexicon:
             result = self._russian_message(key)
         if result is None:
             result = self._chat_template(key, source)
+        if result is None and source == 'ru':
+            result = self._russian_commands.message(text)
         if result is not None:
             suffix = re.search(r'[.!！?？]+$', text.rstrip())
             if suffix:
                 return result.rstrip('。.!！?？') + suffix.group().replace('！', '!').replace('？', '?')
             return result
         return None
+
+    def is_russian_latin_command(self, text: str) -> bool:
+        return bool(re.fullmatch(r'[A-Za-z0-9\s,.!?;\-]+', text) and self._russian_commands.message(text) is not None)
 
     def _prepare_chat_templates(self, data: dict) -> None:
         """Compile editable whole-message forms using only controlled slots."""
@@ -454,7 +507,8 @@ class ChatLexicon:
             for language in self._directions(term):
                 other = 'ru' if language == 'zh' else 'zh'
                 for alias in (term[language], *term.get(language + '_aliases', [])):
-                    self._slot_values[language][kind][self._key(alias)] = term[other]
+                    self._slot_values[language][kind][self._key(alias)] = term.get('standalone_zh', term[other]) if language == 'ru' else term[other]
+        self._slot_values['ru']['hero'].update(self._heroes)
         templates = data.get('templates', [])
         if not isinstance(templates, list):
             raise ValueError('短句模板必须是列表')
@@ -510,6 +564,22 @@ class ChatLexicon:
             or re.match(r'\s+(?:для\s+(?:работы|монтажа|видео|учёбы|учебы)|(?:не\s+)?работает)(?!\w)', after))
 
     def split(self, text: str, source: str) -> list[tuple[str, bool]]:
+        # A known whole clause preserves the action and its negation together.
+        # Unknown clauses retain the existing term/model path.
+        if source != 'ru' or self._russian_commands.message(text) is not None:
+            # Complete commands are handled by exact() in the provider. Keep
+            # split()'s term-level contract for callers inspecting a known line.
+            return self._split_terms(text, source)
+        chunks = []
+        start = 0
+        for left, right, translated in self._russian_commands.spans(text):
+            chunks.extend(self._split_terms(text[start:left], source))
+            chunks.append((translated, True))
+            start = right
+        chunks.extend(self._split_terms(text[start:], source))
+        return chunks
+
+    def _split_terms(self, text: str, source: str) -> list[tuple[str, bool]]:
         chunks: list[tuple[str, bool]] = []
         start = 0
         for match in self._patterns[source].finditer(text):

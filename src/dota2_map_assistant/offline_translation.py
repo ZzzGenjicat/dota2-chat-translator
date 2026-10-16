@@ -29,7 +29,7 @@ def default_model_path() -> Path:
 DEFAULT_MODEL_PATH = default_model_path()
 MODEL_FILES = ('model.bin', 'config.json', 'shared_vocabulary.txt', 'spm.128k.model')
 LANGUAGES = {'rus': 'ru', 'zho': 'zh', 'eng': 'en', 'ru': 'ru', 'zh': 'zh', 'en': 'en'}
-PIPELINE_VERSION = 'm2m100-int8-chat-v4-presets-beam1-max128'
+PIPELINE_VERSION = 'm2m100-int8-chat-v5-ru-commands-tone-beam1-max128'
 _INFERENCE_LOCK = threading.Lock()
 
 
@@ -292,7 +292,10 @@ class OfflineTranslationProvider:
             pending = [chunk.strip() for chunk, protected in chunks if not protected and re.search(r'\w', chunk)]
             if len(pending) > 8:
                 raise ValueError('消息过长或片段过多，请拆成较短的聊天句子')
-            results = iter(self.engine.translate_segments(pending, source, self.target_language) if pending else [])
+            generated = self.engine.translate_segments(pending, source, self.target_language) if pending else []
+            for segment in generated:
+                self.lexicon.validate_no_added_insults(text, segment, source, self.target_language)
+            results = iter(generated)
             parts = []
             for chunk, protected in chunks:
                 if protected or not re.search(r'\w', chunk):
@@ -313,6 +316,8 @@ class OfflineTranslationProvider:
         if self.target_language == 'ru' and exact is None and not re.search(r'[\u0400-\u052f]', output):
             if not re.fullmatch(r'[\d\s,.!?+%\-]+', output):
                 raise ValueError('本地模型未返回俄语译文')
+        if exact is None:
+            self.lexicon.validate_no_added_insults(text, output, source, self.target_language)
         try:
             entry = TranslationEntry(key, text, source_language, output, 'translated', time.time())
             if generation is None:
