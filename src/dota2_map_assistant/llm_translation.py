@@ -105,7 +105,7 @@ def cache_path(model_path: Path, lexicon: ChatLexicon) -> Path:
 
 def make_translation_cache(model_path: Path, lexicon: ChatLexicon) -> SQLiteTranslationCache:
     # Old M2M translations are deliberately never migrated into this namespace.
-    return SQLiteTranslationCache(cache_path(model_path, lexicon))
+    return SQLiteTranslationCache(cache_path(model_path, lexicon), directory_budget=True)
 
 
 def build_messages(text: str, source: str, target: str, lexicon: ChatLexicon,

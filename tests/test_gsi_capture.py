@@ -16,6 +16,22 @@ from dota2_map_assistant.gsi_capture import (
 
 
 class GsiCaptureTests(unittest.TestCase):
+    def test_capacity_cleanup_keeps_recent_events_in_newest_first_snapshots(self):
+        for same_game_time in (False, True):
+            with self.subTest(same_game_time=same_game_time):
+                reader = GsiChatReader()
+                events = [
+                    {"game_time": 10 if same_game_time else index,
+                     "event_type": "chat_message", "player_id": 1,
+                     "channel_type": 11, "message": f"сообщение {index}"}
+                    for index in range(5001)
+                ]
+                first = reader.read(json.dumps({"events": events[::-1]}))
+                self.assertEqual(len(first), 5001)
+                self.assertEqual(first[0].text, "сообщение 0")
+                self.assertEqual(first[-1].text, "сообщение 5000")
+                self.assertEqual(reader.read(json.dumps({"events": events[-100:][::-1]})), [])
+
     def test_extracts_chat_in_game_time_order_and_ignores_repeat_posts(self):
         reader = GsiChatReader()
         payload = {"map": {"matchid": "123"}, "events": [

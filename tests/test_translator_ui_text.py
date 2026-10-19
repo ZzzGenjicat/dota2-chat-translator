@@ -95,7 +95,7 @@ class TranslatorUiTextTests(unittest.TestCase):
                             try:
                                 self._wait_for_gsi_check(root, app)
                                 self.assertEqual(app.gsi_install_button.winfo_manager(), "pack")
-                                self.assertIn("一次", app.gsi_status_var.get())
+                                self.assertIn("一次" if initial_state == "missing" else "修复", app.gsi_status_var.get())
                                 self.assertIn("重启 Dota 2", app.gsi_status_var.get())
                                 self.assertEqual(app.gsi_install_button.cget("text"),
                                                  "安装游戏直读配置" if initial_state == "missing" else "修复游戏直读配置")
@@ -160,7 +160,7 @@ class TranslatorUiTextTests(unittest.TestCase):
                         app.gsi_install_button.invoke()
                     self.assertEqual(app.gsi_install_button.winfo_manager(), "pack")
                     self.assertIn("失败", app.gsi_status_var.get())
-                    self.assertIn("一次", app.gsi_status_var.get())
+                    self.assertIn("权限", app.gsi_status_var.get())
                 finally:
                     app.controller.close()
                     root.destroy()

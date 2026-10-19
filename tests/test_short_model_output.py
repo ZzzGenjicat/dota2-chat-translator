@@ -11,6 +11,27 @@ from dota2_map_assistant.sqlite_cache import SQLiteTranslationCache
 
 
 class ShortModelOutputTests(unittest.TestCase):
+    def test_unknown_model_symbols_are_not_shown_or_cached_as_translations(self):
+        for tokens, decoded in ((['__zh__', '<unk>', '子'], ' ⁇ 子'),
+                                (['__zh__', '▁<', 'unk', '>子'], '<unk>子'),
+                                (['__zh__', '▁⁇', '子'], '⁇子')):
+            with self.subTest(tokens=tokens), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                lexicon_path = root / 'lexicon.json'
+                lexicon_path.write_text(json.dumps({'schema_version': 1, 'phrases': [], 'terms': []}), encoding='utf-8')
+                cache = SQLiteTranslationCache(root / 'cache.sqlite3')
+                engine = M2M100Engine(root)
+                self.addCleanup(engine.close)
+                engine._tokenizer = SimpleNamespace(encode=lambda text, out_type: ['source'],
+                                                     decode=lambda pieces: decoded)
+                engine._translator = SimpleNamespace(translate_batch=lambda *args, **kwargs: [
+                    SimpleNamespace(hypotheses=[tokens]),
+                ])
+                provider = OfflineTranslationProvider(engine, cache, 'zh', ChatLexicon(lexicon_path))
+                with self.assertRaisesRegex(ValueError, '未能可靠完成翻译'):
+                    provider.translate('Какая же ты обуза.', 'rus')
+                self.assertIsNone(cache.get('ru>zh:rus:какая же ты обуза.'))
+
     def test_saturated_short_output_reports_failure_without_caching_or_retrying(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

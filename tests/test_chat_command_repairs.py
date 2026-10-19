@@ -23,6 +23,35 @@ class RussianChatRepairTests(unittest.TestCase):
             provider = OfflineTranslationProvider(NoModel(), SQLiteTranslationCache(Path(temporary)/'cache.sqlite3'), 'zh', self.lex)
             return provider.translate(text, 'ru')
 
+    def test_bot_player_context_does_not_force_the_bottom_lane(self):
+        for text, expected in (('Чистый бот.', '纯纯人机.'), ('ты просто бот', '你就是个人机'),
+                               ('она не бот', '她不是人机'), ('я чистый бот', '我纯纯人机')):
+            with self.subTest(claim=text):
+                self.assertEqual(self.lex.exact(text, 'ru'), expected)
+        for text, expected in (
+            ('Чистый бот.', '人机'), ('Я бот.', '人机'), ('Ты просто бот.', '人机'),
+            ('Он не бот.', '人机'), ('играешь как бот', '人机'),
+            ('Бот пишет в чат.', '机器人'), ('это чат-бот', '机器人'),
+        ):
+            with self.subTest(text=text):
+                protected = ''.join(chunk for chunk, fixed in self.lex.split(text, 'ru') if fixed)
+                self.assertIn(expected, protected)
+                self.assertNotIn('下路', protected)
+        for text, expected in (('го бот', '下路'), ('пушим бот', '推下'),
+                               ('на боте', '下路'), ('бот без вижена', '下路'), ('все кричат бот', '下路')):
+            with self.subTest(lane=text):
+                protected = ''.join(chunk for chunk, fixed in self.lex.split(text, 'ru') if fixed)
+                self.assertIn(expected, protected)
+                self.assertNotIn('人机', protected)
+
+    def test_known_fool_inflections_are_translated_without_false_tone_rejection(self):
+        for text in ('придурок', 'придурка', 'придурки', 'придурков'):
+            with self.subTest(text=text):
+                self.assertEqual(self.lex.exact(text, 'ru'), '蠢货')
+                self.lex.validate_no_added_insults(text, '蠢货', 'ru', 'zh')
+        with self.assertRaisesRegex(ValueError, '加入了原文没有的辱骂'):
+            self.lex.validate_no_added_insults('ты играешь хорошо', '你这个蠢货', 'ru', 'zh')
+
     def test_purchases_keep_negation_and_accept_new_hero_item_combinations(self):
         for text, expected in (
             ('купи скади', '买冰眼'), ('не покупай манту', '别买幻影斧'),

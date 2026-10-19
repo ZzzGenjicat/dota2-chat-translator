@@ -452,6 +452,10 @@ class ChatLexicon:
         self._obscene_command = re.compile(r'соси(?:те)? (?:(?P<swear>ебаный|ёбаный) )?(?:читер|софтер)')
 
     def _russian_message(self, key: str) -> str | None:
+        bot = re.fullmatch(r'(?:(я|ты|он|она|это) )?(?:(чистый|просто|не) )?бот', key)
+        if bot and (bot[1] or bot[2]):
+            who = {'я': '我', 'ты': '你', 'он': '他', 'она': '她', 'это': '这'}.get(bot[1], '')
+            return who + {'чистый': '纯纯人机', 'просто': '就是个人机', 'не': '不是人机', None: '是人机'}[bot[2]]
         match = self._ownership.fullmatch(key)
         if match:
             who = self._heroes.get(match['who'], self._owners.get(match['who']))
@@ -596,6 +600,12 @@ class ChatLexicon:
             elif source == 'ru' and key == 'на софте':
                 if self._literal_software(text, match.start(), match.end()):
                     translated = '用软件'
+            elif source == 'ru' and key in ('бот', 'bot'):
+                before, after = text[:match.start()].casefold(), text[match.end():].casefold()
+                if re.search(r'\bчат[- ]$', before) or re.match(r'\s+(?:пишет|отвечает)\b', after):
+                    translated = '机器人'
+                elif re.search(r'\b(?:чистый|тупой|как|словно|(?:я|ты|он|она|это)(?: (?:просто|не))?)\s+$', before):
+                    translated = '人机'
             chunks.append((translated, True))
             start = match.end()
         if start < len(text):

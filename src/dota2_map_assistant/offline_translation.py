@@ -29,7 +29,7 @@ def default_model_path() -> Path:
 DEFAULT_MODEL_PATH = default_model_path()
 MODEL_FILES = ('model.bin', 'config.json', 'shared_vocabulary.txt', 'spm.128k.model')
 LANGUAGES = {'rus': 'ru', 'zho': 'zh', 'eng': 'en', 'ru': 'ru', 'zh': 'zh', 'en': 'en'}
-PIPELINE_VERSION = 'm2m100-int8-chat-v5-ru-commands-tone-beam1-max128'
+PIPELINE_VERSION = 'm2m100-int8-chat-v6-unknown-bot-tone-beam1-max128'
 _INFERENCE_LOCK = threading.Lock()
 
 
@@ -70,6 +70,7 @@ def cache_path(model_path: Path, lexicon: ChatLexicon) -> Path:
 
 def make_translation_cache(model_path: Path, lexicon: ChatLexicon) -> SQLiteTranslationCache:
     return SQLiteTranslationCache(cache_path(model_path, lexicon),
+                                  directory_budget=True,
                                   legacy_path=APP_ROOT / 'data' / _cache_filename(model_path, lexicon, portable=False))
 
 
@@ -187,11 +188,13 @@ class M2M100Engine:
                 translated = []
                 for result in results:
                     tokens = result.hypotheses[0]
-                    if len(tokens) >= 128:
+                    if len(tokens) >= 128 or '<unk>' in tokens:
                         raise ValueError('模型未能可靠完成翻译，原文已保留')
                     tokens = [token for token in tokens if not (token.startswith('__') and token.endswith('__'))
                               and token not in ('<s>', '</s>', '<pad>')]
                     output = self._tokenizer.decode(tokens).strip()
+                    if '<unk>' in output or '⁇' in output:
+                        raise ValueError('模型未能可靠完成翻译，原文已保留')
                     if not output:
                         raise RuntimeError('本地模型未返回译文')
                     translated.append(output)
@@ -255,6 +258,9 @@ class M2M100Engine:
 
 class OfflineTranslationProvider:
     is_offline = True
+    # Direction-aware caching happens on the translation worker. Outer layers
+    # must not read SQLite on the UI thread or persist duplicate unscoped keys.
+    manages_cache = True
 
     def __init__(self, engine: M2M100Engine, cache: SQLiteTranslationCache,
                  target_language: str = 'zh', lexicon: ChatLexicon | None = None) -> None:

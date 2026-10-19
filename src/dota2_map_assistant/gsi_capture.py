@@ -94,7 +94,7 @@ class GsiChatReader:
 
     def __init__(self) -> None:
         self._matchid: str | None = None
-        self._seen: set[tuple[object, ...]] = set()
+        self._seen: dict[tuple[object, ...], None] = {}
         self._russian_latin_messages = russian_latin_messages()
         self._chat_lexicon = ChatLexicon()
 
@@ -115,8 +115,8 @@ class GsiChatReader:
         events = data.get("events")
         if not isinstance(events, list):
             return []
-        fresh: list[tuple[float, int, str]] = []
-        for event in events:
+        candidates: list[tuple[float, int, tuple[object, ...], str]] = []
+        for index, event in enumerate(events):
             if not isinstance(event, dict) or event.get("event_type") != "chat_message":
                 continue
             text = event.get("message")
@@ -132,20 +132,25 @@ class GsiChatReader:
             except (TypeError, ValueError):
                 game_time = 0.0
             key = (game_time, slot, event.get("channel_type"), text)
+            candidates.append((game_time, -index, key, text))
+        # GSI lists newest first. Insert identities chronologically, including
+        # ties, so capacity cleanup can retain the most recent messages.
+        fresh: list[str] = []
+        for _game_time, _index, key, text in sorted(candidates):
             if key in self._seen:
                 continue
-            self._seen.add(key)
+            self._seen[key] = None
             if text and (_CYRILLIC.search(text)
                          or ChatLexicon._key(text) in self._russian_latin_messages
                          or self._chat_lexicon.is_russian_latin_command(text)):
-                # GSI lists newest first; reverse ties within the same game second.
-                fresh.append((game_time, -len(fresh), text))
+                fresh.append(text)
         if len(self._seen) > 5000:
-            self._seen = set(list(self._seen)[-2000:])
-        fresh.sort(key=lambda item: (item[0], item[1]))
+            # Stable sorting preserves insertion order for equal game times;
+            # delayed older snapshots must not evict recent identities either.
+            self._seen = dict.fromkeys(sorted(self._seen, key=lambda key: key[0])[-2000:])
         now = time.time()
         return [TextObservation(text, "rus", 1.0, now + index * 0.000001)
-                for index, (_, _, text) in enumerate(fresh)]
+                for index, text in enumerate(fresh)]
 
 
 class GsiListener:

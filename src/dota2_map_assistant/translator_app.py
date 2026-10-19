@@ -56,10 +56,10 @@ class TranslatorApp:
         self.always_on_top_var = tk.BooleanVar(value=self.settings.always_on_top)
         self.opacity_var = tk.DoubleVar(value=self.settings.opacity)
         self.font_size_var = tk.IntVar(value=self.settings.font_size)
-        self.status_var = tk.StringVar(value="已暂停；点击开始抓取游戏聊天")
-        self.translation_status_var = tk.StringVar(value='本地离线 · ' + self.controller.engine.display_name)
+        self.status_var = tk.StringVar(value="已暂停")
+        self.translation_status_var = tk.StringVar(value='本地离线')
         self.model_status_var = tk.StringVar(value=self.controller.engine.status)
-        self.gsi_status_var = tk.StringVar(value="正在检查游戏直读配置…")
+        self.gsi_status_var = tk.StringVar(value="检查游戏配置中…")
         self._rendered_rows: tuple = ()
         self._build_ui()
         if sys.platform == "darwin":
@@ -112,8 +112,7 @@ class TranslatorApp:
         header = ttk.Frame(outer, style="App.TFrame")
         header.pack(fill=tk.X, pady=(0, 20))
         ttk.Label(header, text="Dota 2 聊天翻译", style="Title.TLabel").pack(side=tk.LEFT)
-        ttk.Label(header, text="俄语聊天实时译成中文", style="Muted.TLabel").pack(side=tk.LEFT, padx=(18, 0), pady=(8, 0))
-        ttk.Label(header, text="游戏直读 · 俄语聊天", style="Muted.TLabel").pack(side=tk.RIGHT, pady=(8, 0))
+        ttk.Label(header, text="俄语聊天 → 中文", style="Muted.TLabel").pack(side=tk.LEFT, padx=(18, 0), pady=(8, 0))
 
         body = ttk.Frame(outer, style="App.TFrame")
         body.pack(fill=tk.BOTH, expand=True)
@@ -126,7 +125,7 @@ class TranslatorApp:
 
         gsi_heading = ttk.Frame(side, style="Surface.TFrame")
         gsi_heading.pack(fill=tk.X)
-        ttk.Label(gsi_heading, text="游戏聊天直读", style="Section.TLabel").pack(side=tk.LEFT)
+        ttk.Label(gsi_heading, text="游戏配置", style="Section.TLabel").pack(side=tk.LEFT)
         self.gsi_folder_button = ttk.Button(gsi_heading, text="选择目录", command=self._choose_dota_dir, style="Link.TButton")
         self.gsi_folder_button.pack(side=tk.RIGHT)
         gsi_setup = ttk.Frame(side, style="Surface.TFrame")
@@ -136,14 +135,12 @@ class TranslatorApp:
         self.gsi_install_button = ttk.Button(gsi_setup, text="安装游戏直读配置",
                                             command=self._install_gsi, style="App.TButton")
         ttk.Separator(side).pack(fill=tk.X, pady=(0, 16))
-        ttk.Label(side, text="翻译方式", style="Section.TLabel").pack(anchor=tk.W)
+        ttk.Label(side, text="翻译", style="Section.TLabel").pack(anchor=tk.W)
         ttk.Label(side, textvariable=self.translation_status_var, style="SurfaceMuted.TLabel",
                   wraplength=250).pack(anchor=tk.W, pady=(8, 6))
         ttk.Label(side, textvariable=self.model_status_var, style='SurfaceMuted.TLabel',
                   wraplength=250).pack(anchor=tk.W, pady=(0, 8))
-        ttk.Label(side, text='俄语 → 中文 / 中文 → 俄语\n预设词句优先，其余本地翻译。',
-                  style='SurfaceMuted.TLabel', wraplength=250).pack(anchor=tk.W, pady=(0, 12))
-        self.offline_translation_button = ttk.Button(side, text='预热本地模型', command=self._warmup_model,
+        self.offline_translation_button = ttk.Button(side, text='加载模型', command=self._warmup_model,
                                                     style='App.TButton')
         self.offline_translation_button.pack(fill=tk.X, pady=(0, 12))
         self.settings_button = ttk.Button(side, text="更多设置", command=self._toggle_settings, style="App.TButton")
@@ -162,18 +159,18 @@ class TranslatorApp:
         self.settings_panel = ttk.Frame(self.settings_window, style="Surface.TFrame", padding=22)
         self.settings_panel.pack(fill=tk.BOTH, expand=True)
         advanced = self.settings_panel
-        ttk.Label(advanced, text='本地翻译', style='Section.TLabel').pack(anchor=tk.W, pady=(0, 8))
-        ttk.Label(advanced, text='本地模型（需 32 GB 内存，当前可用至少 22 GB）', style='SurfaceMuted.TLabel', wraplength=410).pack(anchor=tk.W)
+        ttk.Label(advanced, text='模型设置', style='Section.TLabel').pack(anchor=tk.W, pady=(0, 8))
+        ttk.Label(advanced, text='模型文件夹', style='SurfaceMuted.TLabel', wraplength=410).pack(anchor=tk.W)
         ttk.Entry(advanced, textvariable=self.model_path_var, style='App.TEntry').pack(fill=tk.X, pady=(4, 5))
-        ttk.Button(advanced, text='选择 GGUF 模型文件', command=self._choose_model_path, style='App.TButton').pack(fill=tk.X)
+        ttk.Button(advanced, text='选择模型文件夹', command=self._choose_model_path, style='App.TButton').pack(fill=tk.X)
         thread_row = ttk.Frame(advanced, style='Surface.TFrame')
         thread_row.pack(fill=tk.X, pady=(10, 6))
         ttk.Label(thread_row, text='CPU 线程数（默认 2）', style='SurfaceMuted.TLabel').pack(side=tk.LEFT)
         ttk.Combobox(thread_row, values=(1, 2, 3, 4), textvariable=self.cpu_threads_var,
                      state='readonly', width=5, style='App.TCombobox').pack(side=tk.RIGHT)
-        ttk.Label(advanced, text='1 线程更省 CPU；2 线程兼顾速度。空闲 3 分钟自动释放模型。',
+        ttk.Label(advanced, text='空闲 3 分钟后释放模型。',
                   style='SurfaceMuted.TLabel', wraplength=410).pack(anchor=tk.W, pady=(0, 6))
-        ttk.Button(advanced, text='应用本地设置 / 重载词库', command=self._apply_offline_settings,
+        ttk.Button(advanced, text='应用设置并重载词库', command=self._apply_offline_settings,
                    style='App.TButton').pack(fill=tk.X, pady=(0, 12))
         ttk.Label(advanced, text="显示设置", style="Section.TLabel").pack(anchor=tk.W, pady=(0, 16))
         ttk.Checkbutton(advanced, text="窗口置顶", variable=self.always_on_top_var,
@@ -197,8 +194,8 @@ class TranslatorApp:
         main.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.feed_header = ttk.Frame(main, style="App.TFrame")
         self.feed_header.pack(fill=tk.X, pady=(0, 11))
-        ttk.Label(self.feed_header, text="实时译文", style="Title.TLabel").pack(side=tk.LEFT)
-        ttk.Label(self.feed_header, text="最新消息在下方", style="Muted.TLabel").pack(side=tk.RIGHT, pady=(10, 0))
+        ttk.Label(self.feed_header, text="聊天译文", style="Title.TLabel").pack(side=tk.LEFT)
+        ttk.Label(self.feed_header, text="新消息在底部", style="Muted.TLabel").pack(side=tk.RIGHT, pady=(10, 0))
         feed_frame = tk.Frame(main, background=COLORS["surface"], highlightbackground=COLORS["line"],
                               highlightthickness=1)
         feed_frame.pack(fill=tk.BOTH, expand=True)
@@ -209,7 +206,7 @@ class TranslatorApp:
         self.feed.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.feed.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.feed.insert(tk.END, "点击开始抓取，等待 Dota 2 聊天。", "original")
+        self.feed.insert(tk.END, "点击“开始抓取”接收聊天。", "original")
         self.feed.configure(state=tk.DISABLED)
 
         composer = tk.Frame(main, background=COLORS["surface"], highlightbackground=COLORS["line"],
@@ -218,8 +215,8 @@ class TranslatorApp:
         composer.pack(side=tk.BOTTOM, fill=tk.X, pady=(12, 0), before=self.feed_header)
         heading = ttk.Frame(composer, style="Surface.TFrame")
         heading.pack(fill=tk.X, pady=(0, 6))
-        ttk.Label(heading, text="发言翻译  ·  中文 → 俄语", style="Section.TLabel").pack(side=tk.LEFT)
-        ttk.Label(heading, text="输入后自动翻译，保留原话语气", style="SurfaceMuted.TLabel").pack(side=tk.RIGHT)
+        ttk.Label(heading, text="中文 → 俄语", style="Section.TLabel").pack(side=tk.LEFT)
+        ttk.Label(heading, text="复制后粘贴到游戏", style="SurfaceMuted.TLabel").pack(side=tk.RIGHT)
         self.outgoing_input = tk.Text(composer, height=2, wrap=tk.WORD, font=(self.ui_font, 10),
                                       background=COLORS["background"], foreground=COLORS["text"],
                                       insertbackground=COLORS["text"], relief=tk.FLAT, padx=9, pady=5)
@@ -246,7 +243,7 @@ class TranslatorApp:
         if self._closing or self._gsi_check_pending:
             return
         self._gsi_check_pending = True
-        self.gsi_status_var.set("正在检查游戏直读配置…")
+        self.gsi_status_var.set("检查游戏配置中…")
         self.gsi_install_button.pack_forget()
         events = self.gsi_events
         preferred = self.settings.dota_game_dir
@@ -275,13 +272,13 @@ class TranslatorApp:
                 except OSError:
                     self.status_var.set("无法记住游戏目录；本次仍可使用")
         messages = {
-            "installed": "配置已安装，无需重复安装。每次打开自动检查；首次安装后需重启 Dota 2。",
-            "missing": "配置未安装。只需安装一次，安装后重启 Dota 2。",
-            "invalid": "配置异常，请修复。通常只需安装一次，修复后重启 Dota 2。",
-            "game_not_found": "未找到 Dota 2。可选择游戏目录，或确认安装后重新检查。",
-            "unreadable": "无法读取配置，暂不能确认安装状态。请检查访问权限后重新检查。",
+            "installed": "配置已安装，无需重复安装。",
+            "missing": "首次使用，安装一次配置后重启 Dota 2。",
+            "invalid": "配置异常，请修复后重启 Dota 2。",
+            "game_not_found": "未找到 Dota 2，请选择游戏目录。",
+            "unreadable": "无法读取配置，请检查目录权限。",
         }
-        self.gsi_status_var.set("配置已安装，无需重复安装。请重启 Dota 2 后点击“开始抓取”。"
+        self.gsi_status_var.set("配置已安装，重启 Dota 2 后开始抓取。"
                                 if just_installed and result.state == "installed" else messages[result.state])
         if result.state == "installed":
             self.gsi_install_button.pack_forget()
@@ -314,14 +311,14 @@ class TranslatorApp:
             target = install_gsi_config(dota_dir)
         except OSError as exc:
             self.status_var.set(f"安装游戏直读配置失败：{exc}")
-            self.gsi_status_var.set("安装失败，请检查写入权限后重试。只需安装一次，安装后重启 Dota 2。")
+            self.gsi_status_var.set("安装失败，请检查目录权限后重试。")
             return
         result = check_gsi_config(dota_dir)
         self._show_gsi_check(result, just_installed=True)
         if result.state != "installed":
-            self.status_var.set("配置写入后检查未通过，请按左侧说明重试")
+            self.status_var.set("配置检查未通过，请重试")
             return
-        self.status_var.set(f"配置已安装到 {target}；请重启 Dota 2 后点击开始抓取")
+        self.status_var.set("配置已安装，请重启 Dota 2")
 
     def _toggle_capture(self) -> None:
         if self.controller.status == "运行中":
@@ -351,7 +348,7 @@ class TranslatorApp:
             return
         self.settings = self.controller.settings
         self.model_path_var.set(self.settings.offline_model_path)
-        self.translation_status_var.set('本地离线 · ' + self.controller.engine.display_name)
+        self.translation_status_var.set('本地离线')
         self.outgoing_translator.provider = self.controller.outgoing_provider
         self._save_settings()
         self._schedule_outgoing_translation()
@@ -362,7 +359,7 @@ class TranslatorApp:
             return
         engine = self.controller.engine
         self._warming_engine = engine
-        self.model_status_var.set('正在预热本地模型…')
+        self.model_status_var.set('正在加载模型…')
         self.offline_translation_button.configure(state=tk.DISABLED)
         def work() -> None:
             try:

@@ -123,7 +123,7 @@ class TranslatorController:
             self.rows[index] = updated
             self._rows_by_key[row.key] = updated
 
-    def process_observation(self, observation: TextObservation) -> None:
+    def process_observation(self, observation: TextObservation, *, trusted_text: bool = False) -> None:
         text = normalize_text(observation.text)
         if not text or is_chat_wheel_message(text):
             return
@@ -143,15 +143,20 @@ class TranslatorController:
             return
         if text.casefold() in self._seen_message_texts:
             return
-        if any(
+        # GSI already supplies exact chat text. OCR similarity can merge distinct
+        # commands such as going to Roshan versus returning to base.
+        if not trusted_text and any(
             abs(observation.observed_at - row.observed_at) < 90
             and similar_observations(observation, TextObservation(row.source_text, row.language, None, row.observed_at))
             for row in self.rows[-60:]
         ):
             return
         local = local_term_translation(text)
+        provider = self.translation_queue.provider
         try:
-            cached = self.translation_cache.get(key) if local is None and not getattr(self.translation_queue.provider, 'contextual', False) else None
+            cached = (self.translation_cache.get(key)
+                      if local is None and not getattr(provider, 'contextual', False)
+                      and not getattr(provider, 'manages_cache', False) else None)
         except OSError:
             cached = None
         if local is not None:
@@ -175,7 +180,7 @@ class TranslatorController:
                 break
             if observation.language != "rus":
                 continue
-            self.process_observation(observation)
+            self.process_observation(observation, trusted_text=True)
         while True:
             entry = self.translation_queue.poll_result()
             if entry is None:

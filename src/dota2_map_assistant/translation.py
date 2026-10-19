@@ -376,7 +376,8 @@ class TranslationQueue:
             return False
         key = observation_key(text, observation.language)
         try:
-            cached = None if getattr(self.provider, 'contextual', False) else self.cache.get(key)
+            cached = (None if getattr(self.provider, 'contextual', False)
+                      or getattr(self.provider, 'manages_cache', False) else self.cache.get(key))
         except OSError:
             cached = None
         if cached is not None:
@@ -465,7 +466,8 @@ class TranslationQueue:
                 with self._lock:
                     if generation == self._generation:
                         try:
-                            self.cache.put(entry)
+                            if not getattr(provider, 'manages_cache', False):
+                                self.cache.put(entry)
                         except OSError:
                             pass  # The visible translation does not depend on a writable cache.
                         self._results.put(entry)

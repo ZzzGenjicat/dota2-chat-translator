@@ -1,6 +1,7 @@
 import sys
 import tempfile
 import unittest
+import threading
 from unittest.mock import patch
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from dota2_map_assistant.translator_app import TranslatorController, _row_from_e
 from dota2_map_assistant.translator_controller import TRANSLATION_CACHE_PATH, _cache_path_for_settings
 from dota2_map_assistant.translator_models import TextObservation, TranslationEntry
 from dota2_map_assistant.translator_settings import TranslatorSettings
+from dota2_map_assistant.sqlite_cache import SQLiteTranslationCache
 
 
 class RecordingProvider:
@@ -23,6 +25,56 @@ class RecordingProvider:
 
 
 class TranslatorControllerTests(unittest.TestCase):
+    def test_distinct_gsi_commands_are_not_merged_as_ocr_variants(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = TranslationCache(Path(tmp) / "cache.json")
+            queue = TranslationQueue(RecordingProvider(), cache, start_worker=False)
+            controller = TranslatorController(TranslatorSettings(), translation_queue=queue,
+                                              translation_cache=cache)
+            try:
+                controller._receive_gsi_messages([
+                    TextObservation("идем все вместе на рошана", "rus", 1.0, 1.0),
+                    TextObservation("идем все вместе на базу", "rus", 1.0, 2.0),
+                    TextObservation("купите пожалуйста варды", "rus", 1.0, 3.0),
+                    TextObservation("купите пожалуйста смоки", "rus", 1.0, 4.0),
+                ])
+                controller.poll()
+                self.assertEqual([row.source_text for row in controller.rows], [
+                    "идем все вместе на рошана", "идем все вместе на базу",
+                    "купите пожалуйста варды", "купите пожалуйста смоки",
+                ])
+            finally:
+                controller.close()
+
+    def test_offline_feed_uses_only_worker_cache_and_directional_entries(self) -> None:
+        main_thread = threading.get_ident()
+        reads = []
+        writes = []
+
+        class ObservedCache(SQLiteTranslationCache):
+            def get(self, key):
+                reads.append((key, threading.get_ident()))
+                return super().get(key)
+
+            def put(self, entry, expected_generation=None):
+                writes.append((entry.key, threading.get_ident()))
+                return super().put(entry, expected_generation=expected_generation)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = ObservedCache(Path(tmp) / "cache.sqlite3")
+            controller = TranslatorController(TranslatorSettings(), translation_cache=cache)
+            worker = controller.translation_queue._worker
+            try:
+                controller.process_observation(TextObservation("ты долбоёб", "rus", 1.0, 1.0))
+                entry = controller.translation_queue._results.get(timeout=5)
+                self.assertEqual(entry.translated_text, "你是傻逼")
+                self.assertTrue(reads)
+                self.assertTrue(all(thread != main_thread for _key, thread in reads), reads)
+                self.assertEqual([key for key, _thread in writes], ["ru>zh:rus:ты долбоёб"])
+            finally:
+                controller.close()
+                worker.join(timeout=5)
+
     def test_direct_observation_with_chat_wheel_arrow_never_reaches_translation(self):
         with tempfile.TemporaryDirectory() as tmp:
             cache = TranslationCache(Path(tmp) / "cache.json")

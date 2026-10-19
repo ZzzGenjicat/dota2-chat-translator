@@ -2173,7 +2173,8 @@
     {"zh":"人渣","ru":"мрази","kind":"slang","strength":2,"directions":["ru"],"whole_message_only":true,"source":"user_glossary_2026_10_15","ru_aliases":["мразей","мразью"]},
     {"zh":"去控符","ru":"зарунить","kind":"game","strength":0,"directions":["ru"],"whole_message_only":true,"source":"user_glossary_2026_10_15"},
     {"zh":"打断","ru":"перебей","kind":"game","strength":0,"directions":["ru"],"whole_message_only":true,"source":"user_glossary_2026_10_15"},
-    {"zh":"超级兵","ru":"суперкрипы","kind":"game","strength":0,"directions":["ru"],"whole_message_only":true,"source":"user_glossary_2026_10_15"}
+    {"zh":"超级兵","ru":"суперкрипы","kind":"game","strength":0,"directions":["ru"],"whole_message_only":true,"source":"user_glossary_2026_10_15"},
+    {"zh":"蠢货","ru":"придурок","kind":"insult","strength":1,"directions":["ru"],"whole_message_only":false,"source":"set04_recheck_2026_10_19","ru_aliases":["придурка","придурку","придурком","придурке","придурки","придурков","придуркам","придурками","придурках"]}
   ],
   "russian_latin_aliases": ["5 pos gde sentry bl9","ahuenno","bliat","blja","bljat","blya","blya ya bez tp i bb","blyad","blyat","cuka","cyka","debil","dolbaeb","dolbayob","dolboeb","dolboyob","eblan","huinya","hule","huli","huly","huynya","idi nahui","koroch","mudack","mudak","nahera","nahrena","nahui","nahuj","nahuy","naxui","ne lomai ward pliz","ohuenno","oxuenno","pi3dec kak zhe nas raznesli","pidaras","pidor","pidoras","pidr","pidr nash mid v afk stal","pizdec","pizdets","pizdez","pizduk","pohui","pohuj","pohuy","pudge opyat mimo huk","sosi","sosi hui noob","sosy","suka","syka","uebok","xa-xa ty kupil dagon na am","xuynya","yoblan","zaebal","zaebali","zaebalo","zaebis","zaebiss","zayebis"]
 }
