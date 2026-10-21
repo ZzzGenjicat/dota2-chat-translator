@@ -89,6 +89,9 @@ class ShortModelOutputTests(unittest.TestCase):
             engine._tokenizer.decode=lambda tokens:'哈'*12+'，'+'好'*80
             with self.assertRaisesRegex(ValueError,'可靠'):
                 engine.translate_segments(['я тебе уже сказал'], 'ru','zh')
+            engine._tokenizer.decode=lambda tokens:'是的,'*15
+            with self.assertRaisesRegex(ValueError,'可靠'):
+                engine.translate_segments(['для диспела'], 'ru','zh')
             engine._tokenizer.decode=lambda tokens:'哈哈'*40
             self.assertEqual(engine.translate_segments(['ах'*40], 'ru','zh'),['哈哈'*40])
 

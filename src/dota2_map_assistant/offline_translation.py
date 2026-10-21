@@ -29,7 +29,7 @@ def default_model_path() -> Path:
 DEFAULT_MODEL_PATH = default_model_path()
 MODEL_FILES = ('model.bin', 'config.json', 'shared_vocabulary.txt', 'spm.128k.model')
 LANGUAGES = {'rus': 'ru', 'zho': 'zh', 'eng': 'en', 'ru': 'ru', 'zh': 'zh', 'en': 'en'}
-PIPELINE_VERSION = 'm2m100-int8-chat-v7-slang-loop-guard-beam1-max128'
+PIPELINE_VERSION = 'm2m100-int8-chat-v8-slang-loop-guard-beam1-max128'
 _INFERENCE_LOCK = threading.Lock()
 
 
@@ -198,7 +198,7 @@ class M2M100Engine:
                     # One token can decode to many repeated characters without
                     # reaching the token cap. Keep real source laughter, but
                     # reject long loops invented for ordinary sentences.
-                    repetition = r'([^\W\d_]{1,8})\1{11,}'
+                    repetition = r'([^\W\d_](?:[^\W\d_]|[\s，,。.!！？?;；:：]){0,11})\1{11,}'
                     long_repeat = any(len(match.group()) >= 24 for match in re.finditer(repetition, output))
                     if long_repeat and not re.search(repetition, texts[index].casefold()):
                         raise ValueError('模型未能可靠完成翻译，原文已保留')
