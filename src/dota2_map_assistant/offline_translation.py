@@ -29,7 +29,7 @@ def default_model_path() -> Path:
 DEFAULT_MODEL_PATH = default_model_path()
 MODEL_FILES = ('model.bin', 'config.json', 'shared_vocabulary.txt', 'spm.128k.model')
 LANGUAGES = {'rus': 'ru', 'zho': 'zh', 'eng': 'en', 'ru': 'ru', 'zh': 'zh', 'en': 'en'}
-PIPELINE_VERSION = 'm2m100-int8-chat-v6-unknown-bot-tone-beam1-max128'
+PIPELINE_VERSION = 'm2m100-int8-chat-v7-slang-loop-guard-beam1-max128'
 _INFERENCE_LOCK = threading.Lock()
 
 
@@ -186,7 +186,7 @@ class M2M100Engine:
                                                             max_batch_size=1, max_input_length=0,
                                                             max_decoding_length=128)
                 translated = []
-                for result in results:
+                for index, result in enumerate(results):
                     tokens = result.hypotheses[0]
                     if len(tokens) >= 128 or '<unk>' in tokens:
                         raise ValueError('模型未能可靠完成翻译，原文已保留')
@@ -194,6 +194,13 @@ class M2M100Engine:
                               and token not in ('<s>', '</s>', '<pad>')]
                     output = self._tokenizer.decode(tokens).strip()
                     if '<unk>' in output or '⁇' in output:
+                        raise ValueError('模型未能可靠完成翻译，原文已保留')
+                    # One token can decode to many repeated characters without
+                    # reaching the token cap. Keep real source laughter, but
+                    # reject long loops invented for ordinary sentences.
+                    repetition = r'([^\W\d_]{1,8})\1{11,}'
+                    long_repeat = any(len(match.group()) >= 24 for match in re.finditer(repetition, output))
+                    if long_repeat and not re.search(repetition, texts[index].casefold()):
                         raise ValueError('模型未能可靠完成翻译，原文已保留')
                     if not output:
                         raise RuntimeError('本地模型未返回译文')

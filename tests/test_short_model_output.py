@@ -73,9 +73,24 @@ class ShortModelOutputTests(unittest.TestCase):
                 decode=lambda tokens: ''.join(tokens),
             )
             engine._translator = SimpleNamespace(translate_batch=lambda *args, **kwargs: [
-                SimpleNamespace(hypotheses=[['__zh__'] + ['好'] * 126]),
+                SimpleNamespace(hypotheses=[['__zh__'] + [str(i) for i in range(126)]]),
             ])
-            self.assertEqual(engine.translate_segments(['source'], 'ru', 'zh'), ['好' * 126])
+            self.assertEqual(engine.translate_segments(['source'], 'ru', 'zh'), [''.join(str(i) for i in range(126))])
+
+    def test_decode_loops_below_token_limit_are_rejected_but_source_laughter_is_allowed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine=M2M100Engine(Path(temporary))
+            self.addCleanup(engine.close)
+            engine._tokenizer=SimpleNamespace(encode=lambda text,out_type:['source'],decode=lambda tokens:'哈哈'*40)
+            engine._translator=SimpleNamespace(translate_batch=lambda *args,**kwargs:[
+                SimpleNamespace(hypotheses=[['__zh__','laughter']])])
+            with self.assertRaisesRegex(ValueError,'可靠'):
+                engine.translate_segments(['я тебе уже сказал'], 'ru','zh')
+            engine._tokenizer.decode=lambda tokens:'哈'*12+'，'+'好'*80
+            with self.assertRaisesRegex(ValueError,'可靠'):
+                engine.translate_segments(['я тебе уже сказал'], 'ru','zh')
+            engine._tokenizer.decode=lambda tokens:'哈哈'*40
+            self.assertEqual(engine.translate_segments(['ах'*40], 'ru','zh'),['哈哈'*40])
 
 
 if __name__ == '__main__':

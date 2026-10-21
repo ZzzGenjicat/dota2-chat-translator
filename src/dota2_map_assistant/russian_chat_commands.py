@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import re
+from .russian_chat_slang import RussianChatSlang
 
 QUOTES = re.compile(r'["“”‘’«»]|(?<!\w)\'|\'(?!\w)')
-CLAUSES = re.compile(r'[^，,。.!！?？;；]+')
+CLAUSES = re.compile(r'(?:[^，,。.!！?？;；]|(?<=\d)[,.](?=\d)|(?<=тыс)\.(?=\s*(?:птс|ммр|mmr)(?!\w)))+', re.I)
 
 
 def alternatives(values):
@@ -14,6 +15,7 @@ def alternatives(values):
 class RussianChatCommands:
     def __init__(self, heroes, items):
         self.heroes, self.items = heroes, items
+        self.slang = RussianChatSlang(heroes)
         self.hero = alternatives(heroes)
         self.item = alternatives(items)
         self.targets = {'рош':'肉山', 'роша':'肉山', 'рошу':'肉山', 'рошан':'肉山', 'рошана':'肉山',
@@ -40,6 +42,32 @@ class RussianChatCommands:
         if QUOTES.search(text):
             return None
         key = self.normalized(text)
+        key = re.sub(r'^[—–]\s*', '', key)
+        slang = self.slang.clause(key)
+        if slang is not None:
+            return slang
+        match = re.fullmatch(rf'(?P<why>зачем|нахуй|нахуя) (?P<who>{self.slang.subject}) (?:(?P<before>{self.item}) купил[аи]?|купил[аи]? (?P<after>{self.item}))', key)
+        if match:
+            return self.slang.subjects[match['who']] + ('他妈' if match['why'] != 'зачем' else '') + '买' + self.items[match['before'] or match['after']] + '干嘛'
+        match = re.fullmatch(rf'(?P<who>{self.slang.subject}) (?P<neg>не )?(?P<verb>лагал|лагала|лагали|лагаю|лагаем|лагает|лагаешь|лагают)', key)
+        if match:
+            past = match['verb'] in ('лагал', 'лагала', 'лагали')
+            action = ('刚才没卡' if match['neg'] else '刚才卡了') if past else ('不卡' if match['neg'] else '在卡')
+            return self.slang.subjects[match['who']] + action
+        times = {'один':'1', 'два':'2', 'три':'3', 'четыре':'4', 'пять':'5', 'шесть':'6', 'семь':'7', 'восемь':'8', 'девять':'9', 'десять':'10'}
+        match = re.fullmatch(rf'(?P<who>{self.slang.subject}) (?:(?P<again>опять) |(?P<n>[0-9]{{1,4}}|{alternatives(times)}) раз(?:а)? )?(?:сдох|сдохла|сдохли|умер|умерла|умерли)', key)
+        if match:
+            count = match['n']
+            return self.slang.subjects[match['who']] + ('又' if match['again'] else '') + '死了' + (times.get(count, count) + '次' if count else '')
+        buildings = {'трон':'基地', 'базу':'基地', 'бараки':'兵营'}
+        building = alternatives(buildings)
+        match = re.fullmatch(rf'(?:(?P<hero>{self.hero})[, ]+)?(?P<neg>не )?(?:(?:сломай|сломайте|снеси|снесите|ломай|ломайте|cломай) (?P<after>{building})|(?P<before>{building}) (?:сломай|сломайте|снеси|снесите|ломай|ломайте))', key)
+        if match:
+            return (self.heroes[match['hero']] + '，' if match['hero'] else '') + ('别拆' if match['neg'] else '拆掉') + buildings[match['before'] or match['after']]
+        match = re.fullmatch(rf'(?:(?P<hero>{self.hero})[, ]+)?(?P<neg>не )?(?:продай|продавай|прадавай|прадовай|продовой|продовай)(?: (?P<item>{self.item}))?', key)
+        if match:
+            result = (self.heroes[match['hero']] + '，' if match['hero'] else '')
+            return result + ('别卖' if match['neg'] else '卖掉') + (self.items[match['item']] if match['item'] else '' if match['neg'] else '吧')
         match = re.fullmatch(rf'(?:пацаны |ребята |ребят )?не идите (?:на )?хг у них (?P<first>{self.hero}) с (?P<first_skill>бх|хроно) и (?P<second>{self.hero}) с (?P<second_skill>бх|хроно) давайте лучше (?P<target>{self.target}) сначала', key)
         if match:
             first, second = self.heroes[match['first']], self.heroes[match['second']]
