@@ -1,6 +1,6 @@
 [project]
 name = "dota2-map-assistant"
-version = "0.4.7"
+version = "0.4.8"
 description = "Lightweight offline Dota 2 chat translator with editable phrase presets."
 requires-python = ">=3.12"
 dependencies = [

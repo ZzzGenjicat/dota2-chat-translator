@@ -21,6 +21,7 @@ a = Analysis(
     binaries=ct_bins + sp_bins,
     datas=ct_data + sp_data + [(str(model / name), 'models/' + MODEL_FOLDER) for name in (*FILES, 'manifest.json')] + [
                              (str(root / 'data' / 'dota_chat_lexicon.json'), 'data'),
+                             (str(root / 'assets' / 'app-icon.png'), 'assets'),
                              (str(root / 'packaging' / 'MODEL_NOTICE.txt'), '.'),
                              (str(root / 'build' / 'third-party-licenses-m2m100'), 'THIRD_PARTY_LICENSES')],
     hiddenimports=ct_imports + sp_imports + ['numpy'],
@@ -36,9 +37,9 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='Dota2ChatTranslator',
           debug=False, strip=False, upx=False, console=False,
           target_arch=platform.machine(), codesign_identity=None)
 bundle = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='Dota2ChatTranslator')
-app = BUNDLE(bundle, name='Dota2ChatTranslator.app',
+app = BUNDLE(bundle, name='刀塔翻译.app', icon=str(root / 'assets' / 'app-icon.icns'),
              bundle_identifier='io.github.ZzzGenjicat.dota2-chat-translator',
-             info_plist={'CFBundleName': 'Dota 2 聊天翻译',
-                         'CFBundleDisplayName': 'Dota 2 聊天翻译',
+             info_plist={'CFBundleName': '刀塔翻译',
+                         'CFBundleDisplayName': '刀塔翻译',
                          'CFBundleShortVersionString': version, 'CFBundleVersion': version,
                          'LSMinimumSystemVersion': '14.0', 'NSHighResolutionCapable': True})

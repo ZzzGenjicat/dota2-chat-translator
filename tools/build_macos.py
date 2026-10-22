@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def create_dmg(stage: Path, destination: Path) -> None:
-    args = ['hdiutil', 'create', '-volname', 'Dota 2 本地聊天翻译', '-srcfolder', str(stage),
+    args = ['hdiutil', 'create', '-volname', '刀塔翻译', '-srcfolder', str(stage),
             '-format', 'UDZO', '-ov', str(destination)]
     for attempt in range(3):
         result = subprocess.run(args, capture_output=True, text=True, timeout=600)
@@ -42,7 +42,7 @@ def build(expected_arch: str) -> None:
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm',
                     '--distpath', str(ROOT / 'dist'), '--workpath', str(ROOT / 'build' / 'pyinstaller'),
                     str(ROOT / 'packaging' / 'macos.spec')], cwd=ROOT, check=True)
-    app = ROOT / 'dist' / 'Dota2ChatTranslator.app'
+    app = ROOT / 'dist' / '刀塔翻译.app'
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
     release = ROOT / 'release'
     release.mkdir(exist_ok=True)
@@ -57,7 +57,7 @@ def build(expected_arch: str) -> None:
         if key.startswith('DOTA2_TRANSLATOR_'):
             clean_env.pop(key)
     with tempfile.TemporaryDirectory(prefix='移动后 with spaces ') as moved:
-        moved_app = Path(moved) / 'Dota2ChatTranslator.app'
+        moved_app = Path(moved) / '刀塔翻译.app'
         shutil.copytree(app, moved_app, symlinks=True)
         clean_env['DOTA2_TRANSLATOR_DATA_DIR'] = str(Path(moved) / 'user-data')
         subprocess.run([str(moved_app / 'Contents' / 'MacOS' / 'Dota2ChatTranslator'),

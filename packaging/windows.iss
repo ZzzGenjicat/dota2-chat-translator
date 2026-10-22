@@ -8,14 +8,18 @@
   #error ReleaseDirectory must point to the release output directory
 #endif
 
+#ifndef AppIcon
+  #error AppIcon must point to the application icon
+#endif
+
 [Setup]
 AppId={code:ApplicationId}
-AppName=Dota 2 本地聊天翻译
+AppName=刀塔翻译
 AppVersion={#AppVersion}
 AppPublisher=Dota2 Chat Translator
 AppPublisherURL=https://github.com/ZzzGenjicat/dota2-chat-translator
 DefaultDirName={localappdata}\Programs\Dota2ChatTranslator
-DefaultGroupName=Dota 2 本地聊天翻译
+DefaultGroupName=刀塔翻译
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible and not arm64
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -30,6 +34,7 @@ OutputBaseFilename=Dota2ChatTranslator-{#AppVersion}-windows-x64-setup
 Compression=lzma2/fast
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile={#AppIcon}
 UninstallDisplayIcon={app}\Dota2ChatTranslator.exe
 CloseApplications=yes
 RestartApplications=no
@@ -39,19 +44,25 @@ SetupLogging=yes
 Name: "chinesesimplified"; MessagesFile: "compiler:Default.isl,ChineseSimplified.isl"
 
 [Messages]
-ReadyLabel1=点击“安装”即可安装 Dota 2 本地聊天翻译。
+ReadyLabel1=点击“安装”即可安装刀塔翻译。
 ReadyLabel2a=运行环境及 M2M100 INT8 本地模型已经包含，安装后即可离线翻译。首次按程序提示安装一次游戏直读配置并重启 Dota 2。
 
 [Files]
 Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[InstallDelete]
+Type: files; Name: "{userdesktop}\Dota 2 本地聊天翻译.lnk"; Check: not IsInstallerTest
+Type: files; Name: "{userprograms}\Dota 2 本地聊天翻译\Dota 2 本地聊天翻译.lnk"; Check: not IsInstallerTest
+Type: files; Name: "{userprograms}\Dota 2 本地聊天翻译\首次使用说明.lnk"; Check: not IsInstallerTest
+Type: dirifempty; Name: "{userprograms}\Dota 2 本地聊天翻译"; Check: not IsInstallerTest
+
 [Icons]
-Name: "{code:StartMenuDirectory}\Dota 2 本地聊天翻译"; Filename: "{app}\Dota2ChatTranslator.exe"; WorkingDir: "{app}"
-Name: "{code:DesktopDirectory}\Dota 2 本地聊天翻译"; Filename: "{app}\Dota2ChatTranslator.exe"; WorkingDir: "{app}"
+Name: "{code:StartMenuDirectory}\刀塔翻译"; Filename: "{app}\Dota2ChatTranslator.exe"; WorkingDir: "{app}"; AppUserModelID: "io.github.ZzzGenjicat.dota2-chat-translator"
+Name: "{code:DesktopDirectory}\刀塔翻译"; Filename: "{app}\Dota2ChatTranslator.exe"; WorkingDir: "{app}"; AppUserModelID: "io.github.ZzzGenjicat.dota2-chat-translator"
 Name: "{code:InstructionsDirectory}\首次使用说明"; Filename: "{app}\_internal\WINDOWS_FIRST_USE.txt"
 
 [Run]
-Filename: "{app}\Dota2ChatTranslator.exe"; Description: "打开 Dota 2 本地聊天翻译"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Dota2ChatTranslator.exe"; Description: "打开刀塔翻译"; Flags: nowait postinstall skipifsilent
 
 [Code]
 function IsInstallerTest: Boolean;
@@ -78,7 +89,7 @@ begin
   if IsInstallerTest then
     Result := TestShortcutDirectory + '\start-menu'
   else
-    Result := ExpandConstant('{userprograms}\Dota 2 本地聊天翻译');
+    Result := ExpandConstant('{userprograms}\刀塔翻译');
 end;
 
 function DesktopDirectory(Param: String): String;
@@ -94,5 +105,5 @@ begin
   if IsInstallerTest then
     Result := TestShortcutDirectory + '\instructions'
   else
-    Result := ExpandConstant('{userprograms}\Dota 2 本地聊天翻译');
+    Result := ExpandConstant('{userprograms}\刀塔翻译');
 end;

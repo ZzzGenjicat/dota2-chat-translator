@@ -220,6 +220,9 @@ def run_checks() -> dict:
                 except tk.TclError:
                     pass
                 app = TranslatorApp(root)
+                if root.title() != '刀塔翻译' or (app._window_icon.width(), app._window_icon.height()) != (256, 256):
+                    raise AssertionError('App name or bundled window icon is incorrect')
+                result['checks']['app_branding'] = {'name': root.title(), 'icon_size': [256, 256]}
                 if app.controller.engine.model_path != engine.model_path:
                     raise AssertionError('App changed the explicit offline model fixture path')
                 app.controller.engine.warmup()

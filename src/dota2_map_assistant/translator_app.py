@@ -75,7 +75,9 @@ class TranslatorApp:
         self._begin_gsi_check()
 
     def _build_ui(self) -> None:
-        self.root.title("Dota 2 聊天翻译")
+        self.root.title("刀塔翻译")
+        self._window_icon = tk.PhotoImage(file=str(APP_ROOT / 'assets' / 'app-icon.png'))
+        self.root.iconphoto(True, self._window_icon)
         self.root.geometry("1100x740")
         self.root.minsize(860, 700)
         self.root.configure(background=COLORS["background"])
@@ -111,7 +113,7 @@ class TranslatorApp:
         outer.pack(fill=tk.BOTH, expand=True)
         header = ttk.Frame(outer, style="App.TFrame")
         header.pack(fill=tk.X, pady=(0, 20))
-        ttk.Label(header, text="Dota 2 聊天翻译", style="Title.TLabel").pack(side=tk.LEFT)
+        ttk.Label(header, text="刀塔翻译", style="Title.TLabel").pack(side=tk.LEFT)
         ttk.Label(header, text="俄语聊天 → 中文", style="Muted.TLabel").pack(side=tk.LEFT, padx=(18, 0), pady=(8, 0))
 
         body = ttk.Frame(outer, style="App.TFrame")
@@ -669,8 +671,10 @@ def main() -> None:
 def _enable_dpi_awareness() -> None:
     if os.name == "nt":
         try:
-            import ctypes
-
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('io.github.ZzzGenjicat.dota2-chat-translator')
+        except (AttributeError, OSError):
+            pass
+        try:
             ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except (AttributeError, OSError):
             pass

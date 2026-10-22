@@ -18,6 +18,7 @@ a = Analysis(
     binaries=ct_bins + sp_bins,
     datas=ct_data + sp_data + [(str(model / name), 'models/' + MODEL_FOLDER) for name in (*FILES, 'manifest.json')] + [
                              (str(root / 'data' / 'dota_chat_lexicon.json'), 'data'),
+                             (str(root / 'assets' / 'app-icon.png'), 'assets'),
                              (str(root / 'packaging' / 'MODEL_NOTICE.txt'), '.'),
                              (str(root / 'packaging' / 'WINDOWS_FIRST_USE.txt'), '.'),
                              (str(root / 'build' / 'third-party-licenses-m2m100'), 'THIRD_PARTY_LICENSES')],
@@ -32,5 +33,6 @@ a.datas = [entry for entry in a.datas
            if not Path(entry[0]).name.lower().startswith(('cudnn', 'cublas', 'cudart'))]
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='Dota2ChatTranslator',
-          debug=False, strip=False, upx=False, console=False)
+          debug=False, strip=False, upx=False, console=False,
+          icon=str(root / 'assets' / 'app-icon.ico'))
 bundle = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='Dota2ChatTranslator')

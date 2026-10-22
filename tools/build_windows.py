@@ -84,7 +84,7 @@ def exercise_installer(installer: Path, report: Path, env: dict) -> None:
         app = destination / 'Dota2ChatTranslator.exe'
         uninstaller = destination / 'unins000.exe'
         shortcut_files = [shortcuts / name / f'{label}.lnk' for name, label in (
-            ('start-menu', 'Dota 2 本地聊天翻译'), ('desktop', 'Dota 2 本地聊天翻译'),
+            ('start-menu', '刀塔翻译'), ('desktop', '刀塔翻译'),
             ('instructions', '首次使用说明'))]
         args = [str(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-',
                 '/INSTALLERTEST=1', f'/TESTSHORTCUTDIR={shortcuts}', f'/DIR={destination}']
@@ -150,7 +150,7 @@ def build() -> None:
         frozen_check(moved_app / 'Dota2ChatTranslator.exe', release / f'{stem}-smoke.json', env)
     compiler = ROOT / '.tools' / 'inno-6.7.3' / 'ISCC.exe'
     subprocess.run([str(compiler), f'/DAppVersion={version}', f'/DAppSource={app_dir}',
-                    f'/DReleaseDirectory={release}', str(ROOT / 'packaging' / 'windows.iss')], check=True)
+                    f'/DReleaseDirectory={release}', f'/DAppIcon={ROOT / "assets" / "app-icon.ico"}', str(ROOT / 'packaging' / 'windows.iss')], check=True)
     installer = release / f'{stem}-setup.exe'
     exercise_installer(installer, release / f'{stem}-installer.json', env)
     with installer.open('rb') as stream:
